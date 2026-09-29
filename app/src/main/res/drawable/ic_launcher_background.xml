@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108"
+                android:type="linear">
+                <item android:color="#FF06251E" android:offset="0.0" />
+                <item android:color="#FF0D4236" android:offset="0.5" />
+                <item android:color="#FF135747" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Subtle geometric background Islamic star octagon overlay -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#1FFFFFFF"
+        android:strokeWidth="1.2"
+        android:pathData="M54,16 L65,27 L81,27 L81,43 L92,54 L81,65 L81,81 L65,81 L54,92 L43,81 L27,81 L27,65 L16,54 L27,43 L27,27 L43,27 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#12FFD700"
+        android:strokeWidth="0.8"
+        android:pathData="M54,22 L62,30 L74,30 L74,42 L86,54 L74,66 L74,78 L62,78 L54,86 L46,78 L34,78 L34,66 L22,54 L34,42 L34,30 L46,30 Z" />
+</vector>
