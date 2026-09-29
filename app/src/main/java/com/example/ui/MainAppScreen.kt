@@ -24,13 +24,18 @@ import com.example.ui.screens.*
 import com.example.ui.viewmodel.MuslimViewModel
 
 sealed class Screen(val route: String, val label: String, val selectedIcon: ImageVector, val unselectedIcon: ImageVector) {
-    object Home : Screen("home", "Prayers", Icons.Filled.AccessTimeFilled, Icons.Outlined.AccessTime)
+    // 5 Recommended Main Navigation Tabs
+    object Home : Screen("home", "Home", Icons.Filled.Home, Icons.Outlined.Home)
     object Quran : Screen("quran", "Quran", Icons.Filled.MenuBook, Icons.Outlined.MenuBook)
-    object Qibla : Screen("qibla", "Qibla", Icons.Filled.Explore, Icons.Outlined.Explore)
-    object Tasbih : Screen("tasbih", "Tasbih", Icons.Filled.RadioButtonChecked, Icons.Outlined.RadioButtonUnchecked)
+    object Hadith : Screen("hadith", "Hadith", Icons.Filled.LibraryBooks, Icons.Outlined.LibraryBooks)
+    object Prayer : Screen("prayer", "Prayer", Icons.Filled.AccessTimeFilled, Icons.Outlined.AccessTime)
     object More : Screen("more", "More", Icons.Filled.Widgets, Icons.Outlined.Widgets)
+
     // Sub-screens
-    object Hadith : Screen("hadith", "Hadith", Icons.Filled.MenuBook, Icons.Outlined.MenuBook)
+    object Qibla : Screen("qibla", "Qibla", Icons.Filled.Explore, Icons.Outlined.Explore)
+    object AiAssistant : Screen("ai_assistant", "AI Assistant", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome)
+    object MyJourney : Screen("my_journey", "My Journey", Icons.Filled.Timeline, Icons.Outlined.Timeline)
+    object Tasbih : Screen("tasbih", "Tasbih", Icons.Filled.RadioButtonChecked, Icons.Outlined.RadioButtonUnchecked)
     object Duas : Screen("duas", "Duas", Icons.Filled.VolunteerActivism, Icons.Outlined.VolunteerActivism)
     object NamesOfAllah : Screen("names", "99 Names", Icons.Filled.Star, Icons.Outlined.StarOutline)
     object Calendar : Screen("calendar", "Calendar", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth)
@@ -48,6 +53,7 @@ fun MainAppScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val audioState by viewModel.audioState.collectAsStateWithLifecycle()
     val tasbihHistory by viewModel.tasbihHistory.collectAsStateWithLifecycle()
+    val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val allUsers by viewModel.allUsers.collectAsStateWithLifecycle()
 
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
@@ -78,7 +84,8 @@ fun MainAppScreen(
     // System Back Handler
     BackHandler(enabled = currentScreen != Screen.Home) {
         currentScreen = when (currentScreen) {
-            Screen.Hadith, Screen.Duas, Screen.NamesOfAllah, Screen.Calendar, Screen.Settings, Screen.Admin, Screen.FastingQada -> Screen.More
+            Screen.AiAssistant, Screen.MyJourney, Screen.Tasbih, Screen.Duas, Screen.NamesOfAllah, Screen.Calendar, Screen.Settings, Screen.Admin, Screen.FastingQada -> Screen.More
+            Screen.Qibla -> Screen.Prayer
             else -> Screen.Home
         }
     }
@@ -86,7 +93,7 @@ fun MainAppScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
-            val primaryScreens = listOf(Screen.Home, Screen.Quran, Screen.Qibla, Screen.Tasbih, Screen.More)
+            val primaryScreens = listOf(Screen.Home, Screen.Quran, Screen.Hadith, Screen.Prayer, Screen.More)
             NavigationBar(
                 modifier = Modifier
                     .testTag("bottom_nav_bar")
@@ -97,7 +104,9 @@ fun MainAppScreen(
                     val isSelected = when (screen) {
                         Screen.More -> currentScreen in listOf(
                             Screen.More,
-                            Screen.Hadith,
+                            Screen.AiAssistant,
+                            Screen.MyJourney,
+                            Screen.Tasbih,
                             Screen.Duas,
                             Screen.NamesOfAllah,
                             Screen.Calendar,
@@ -105,6 +114,7 @@ fun MainAppScreen(
                             Screen.Admin,
                             Screen.FastingQada
                         )
+                        Screen.Prayer -> currentScreen in listOf(Screen.Prayer, Screen.Qibla)
                         else -> currentScreen == screen
                     }
 
@@ -144,13 +154,16 @@ fun MainAppScreen(
                             "settings" -> Screen.Settings
                             "admin" -> Screen.Admin
                             "fasting_qada" -> Screen.FastingQada
+                            "prayer" -> Screen.Prayer
+                            "ai_assistant" -> Screen.AiAssistant
+                            "my_journey" -> Screen.MyJourney
                             else -> Screen.Home
                         }
                     },
                     onTogglePrayer = { viewModel.togglePrayer(it) },
                     onSelectCity = { viewModel.setCity(it) },
                     onRequestLocation = requestLocationAction,
-                    onOpenPaywall = { viewModel.showPaywall("Muslim Pro Premium") },
+                    onOpenPaywall = { viewModel.showPaywall("Muslim Ummah Premium") },
                     onOpenAuth = { showAuthDialog = true }
                 )
                 Screen.Quran -> QuranScreen(
@@ -165,37 +178,14 @@ fun MainAppScreen(
                     },
                     isBookmarked = { type, ref, sec ->
                         viewModel.isItemBookmarked(type, ref, sec)
-                    }
-                )
-                Screen.Qibla -> QiblaScreen(
-                    uiState = uiState,
-                    onRequestLocation = requestLocationAction,
-                    onSetOffset = { viewModel.setCompassOffset(it) },
-                    onResetOffset = { viewModel.resetCompassCalibration() }
-                )
-                Screen.Tasbih -> TasbihScreen(
-                    uiState = uiState,
-                    tasbihHistory = tasbihHistory,
-                    onIncrement = { viewModel.incrementTasbih() },
-                    onReset = { viewModel.resetTasbih() },
-                    onSelectDhikr = { viewModel.selectDhikr(it) },
-                    onSetTarget = { viewModel.setTasbihTarget(it) },
-                    onToggleVibration = { viewModel.toggleTasbihVibration() }
-                )
-                Screen.More -> MoreHubScreen(
-                    uiState = uiState,
-                    onNavigate = { route ->
-                        currentScreen = when (route) {
-                            "hadith" -> Screen.Hadith
-                            "duas" -> Screen.Duas
-                            "names" -> Screen.NamesOfAllah
-                            "calendar" -> Screen.Calendar
-                            "settings" -> Screen.Settings
-                            "admin" -> Screen.Admin
-                            "fasting_qada" -> Screen.FastingQada
-                            else -> Screen.Home
-                        }
-                    }
+                    },
+                    onSaveReadingPosition = { surahNum, ayahNum, surahName ->
+                        viewModel.saveQuranReadingPosition(surahNum, ayahNum, surahName)
+                    },
+                    onAddNote = { surahNum, ayahNum, surahName, text ->
+                        viewModel.addQuranNote(surahNum, ayahNum, surahName, text)
+                    },
+                    onShowPaywall = { viewModel.showPaywall(it) }
                 )
                 Screen.Hadith -> HadithScreen(
                     uiState = uiState,
@@ -205,7 +195,72 @@ fun MainAppScreen(
                     isBookmarked = { type, ref, sec ->
                         viewModel.isItemBookmarked(type, ref, sec)
                     },
+                    onSaveReadingPosition = { bookId, chapterName, hadithId, hadithNumber ->
+                        viewModel.saveHadithReadingPosition(bookId, chapterName, hadithId, hadithNumber)
+                    },
+                    onAddNote = { bookId, hadithId, text ->
+                        viewModel.addHadithNote(bookId, hadithId, text)
+                    },
+                    onShowPaywall = { viewModel.showPaywall(it) },
                     onShowStatus = { viewModel.showStatus(it) }
+                )
+                Screen.Prayer -> PrayerTimesScreen(
+                    uiState = uiState,
+                    onSetMethod = { viewModel.setCalculationMethod(it) },
+                    onSetJuristic = { viewModel.setJuristicMethod(it) }
+                )
+                Screen.Qibla -> QiblaScreen(
+                    uiState = uiState,
+                    onRequestLocation = requestLocationAction,
+                    onSetOffset = { viewModel.setCompassOffset(it) },
+                    onResetOffset = { viewModel.resetCompassCalibration() }
+                )
+                Screen.More -> MoreHubScreen(
+                    uiState = uiState,
+                    onNavigate = { route ->
+                        currentScreen = when (route) {
+                            "ai_assistant" -> Screen.AiAssistant
+                            "my_journey" -> Screen.MyJourney
+                            "tasbih" -> Screen.Tasbih
+                            "duas" -> Screen.Duas
+                            "names" -> Screen.NamesOfAllah
+                            "calendar" -> Screen.Calendar
+                            "settings" -> Screen.Settings
+                            "admin" -> Screen.Admin
+                            "fasting_qada" -> Screen.FastingQada
+                            "qibla" -> Screen.Qibla
+                            "hadith" -> Screen.Hadith
+                            else -> Screen.Home
+                        }
+                    },
+                    onOpenPaywall = { viewModel.showPaywall("Muslim Ummah Premium") }
+                )
+                Screen.AiAssistant -> MuslimUmmahAiScreen(
+                    uiState = uiState,
+                    onShowPaywall = { viewModel.showPaywall(it) }
+                )
+                Screen.MyJourney -> MyJourneyScreen(
+                    uiState = uiState,
+                    tasbihHistory = tasbihHistory,
+                    bookmarks = bookmarks,
+                    khatamProgress = uiState.khatamProgress,
+                    onNavigate = { route ->
+                        currentScreen = when (route) {
+                            "quran" -> Screen.Quran
+                            "tasbih" -> Screen.Tasbih
+                            "hadith" -> Screen.Hadith
+                            else -> Screen.Home
+                        }
+                    }
+                )
+                Screen.Tasbih -> TasbihScreen(
+                    uiState = uiState,
+                    tasbihHistory = tasbihHistory,
+                    onIncrement = { viewModel.incrementTasbih() },
+                    onReset = { viewModel.resetTasbih() },
+                    onSelectDhikr = { viewModel.selectDhikr(it) },
+                    onSetTarget = { viewModel.setTasbihTarget(it) },
+                    onToggleVibration = { viewModel.toggleTasbihVibration() }
                 )
                 Screen.Duas -> DuasScreen(
                     uiState = uiState,
@@ -244,9 +299,11 @@ fun MainAppScreen(
                     onSelectCity = { viewModel.setCity(it) },
                     onSetMethod = { viewModel.setCalculationMethod(it) },
                     onSetJuristic = { viewModel.setJuristicMethod(it) },
+                    onSetTheme = { viewModel.setTheme(it) },
                     onOpenAuth = { showAuthDialog = true },
                     onOpenAdmin = { currentScreen = Screen.Admin },
-                    onOpenPaywall = { viewModel.showPaywall("Muslim Pro Premium") },
+                    onOpenPaywall = { viewModel.showPaywall("Muslim Ummah Premium") },
+                    onRestorePurchases = { viewModel.restorePurchases() },
                     onSelectReciter = { viewModel.setReciter(it) },
                     onSelectAdhan = { viewModel.setAdhanSound(it) }
                 )

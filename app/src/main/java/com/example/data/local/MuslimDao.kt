@@ -62,4 +62,45 @@ interface MuslimDao {
 
     @Query("DELETE FROM app_users WHERE email = :email")
     suspend fun deleteUser(email: String)
+
+    // Quran Reading Position
+    @Query("SELECT * FROM quran_reading_position WHERE id = 1 LIMIT 1")
+    fun getQuranReadingPosition(): Flow<QuranReadingPosition?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveQuranReadingPosition(position: QuranReadingPosition)
+
+    // Quran Notes
+    @Query("SELECT * FROM quran_notes ORDER BY timestamp DESC")
+    fun getAllQuranNotes(): Flow<List<QuranNote>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertQuranNote(note: QuranNote): Long
+
+    @Query("DELETE FROM quran_notes WHERE id = :id")
+    suspend fun deleteQuranNote(id: Long)
+
+    // Hadith Reading Position
+    @Query("SELECT * FROM hadith_reading_position WHERE id = 1 LIMIT 1")
+    fun getHadithReadingPosition(): Flow<HadithReadingPosition?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveHadithReadingPosition(position: HadithReadingPosition)
+
+    // Hadith Notes
+    @Query("SELECT * FROM hadith_notes ORDER BY timestamp DESC")
+    fun getAllHadithNotes(): Flow<List<HadithNote>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHadithNote(note: HadithNote): Long
+
+    @Query("DELETE FROM hadith_notes WHERE id = :id")
+    suspend fun deleteHadithNote(id: Long)
+
+    // Khatam Progress
+    @Query("SELECT * FROM khatam_progress WHERE id = 1 LIMIT 1")
+    fun getKhatamProgress(): Flow<KhatamProgress?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveKhatamProgress(progress: KhatamProgress)
 }

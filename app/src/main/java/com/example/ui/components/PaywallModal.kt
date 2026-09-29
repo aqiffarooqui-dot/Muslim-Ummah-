@@ -65,20 +65,29 @@ fun PaywallModal(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Unlock Muslim Pro Premium",
+                text = "Muslim Ummah Premium",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
             )
 
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Unlock advanced tools for your Quran, Hadith and daily worship journey.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             if (featureTrigger.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
-                        text = "Unlock: $featureTrigger",
+                        text = "Requested: $featureTrigger",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Bold,
@@ -89,7 +98,7 @@ fun PaywallModal(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Premium Highlights
+            // 8 Premium Highlights
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -97,11 +106,14 @@ fun PaywallModal(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(14.dp)
             ) {
-                BenefitItem("100% Ad-Free Sacred Spiritual Experience")
-                BenefitItem("5 Elite Reciters (Mishary, Abdul Basit, Sudais, Shuraim)")
-                BenefitItem("All Historic Adhans (Makkah, Madinah, Al-Aqsa, Cairo)")
-                BenefitItem("Ramadan & Qada Missed Fast / Prayer Trackers")
-                BenefitItem("Audio Ruqyah & Hisn al-Muslim Audio Supplications")
+                BenefitItem("1. Advanced Quran: Memorization, 5 Reciters, Repeat loops & Notes")
+                BenefitItem("2. Complete Hadith Study Tools: Kutub al-Sittah & multi-translations")
+                BenefitItem("3. Muslim Ummah AI: Source-verified Islamic assistant")
+                BenefitItem("4. Advanced Prayer & Adhan: Makkah, Madinah, Al-Aqsa voices")
+                BenefitItem("5. Offline & Cloud Sync: Reading positions, notes & bookmarks")
+                BenefitItem("6. Premium Themes: Imperial Gold, OLED Dark, Quran Paper")
+                BenefitItem("7. Personal Progress: 'My Journey' dashboard & Khatam milestones")
+                BenefitItem("8. 100% Ad-Free Sacred Experience")
             }
 
             Spacer(modifier = Modifier.height(20.dp))

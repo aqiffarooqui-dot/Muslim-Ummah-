@@ -1,6 +1,6 @@
 {
-  "name": "Muslim Pro",
-  "description": "Complete Islamic companion featuring accurate prayer times with countdown, Qibla compass, full Holy Quran with audio recitation, Hisn al-Muslim duas, 99 Names of Allah, Hijri calendar, and digital Tasbih counter.",
+  "name": "Muslim Ummah",
+  "description": "Complete Islamic companion featuring accurate prayer times with countdown, Qibla compass, full Holy Quran with audio recitation, Hadith collections, Islamic AI assistant, Hisn al-Muslim duas, 99 Names of Allah, Hijri calendar, and digital Tasbih counter.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

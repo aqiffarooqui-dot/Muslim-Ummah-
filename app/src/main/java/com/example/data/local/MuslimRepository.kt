@@ -58,81 +58,56 @@ class MuslimRepository(private val dao: MuslimDao) {
         dao.deleteUser(email)
     }
 
-    suspend fun seedInitialUsersIfNeeded() {
-        val now = System.currentTimeMillis()
-        val oneMonth = 30L * 24 * 3600 * 1000
-        val oneYear = 365L * 24 * 3600 * 1000
+    // Quran Reading Position & Notes
+    val quranReadingPosition: Flow<QuranReadingPosition?> = dao.getQuranReadingPosition()
+    val allQuranNotes: Flow<List<QuranNote>> = dao.getAllQuranNotes()
 
-        val initialList = listOf(
-            AppUser(
-                email = "aqiffarooqui@gmail.com",
-                displayName = "Aqif Farooqui",
-                photoUrl = "",
-                isPremium = true,
-                planType = "Lifetime VIP",
-                role = "ADMIN",
-                registeredDate = now - (60L * 24 * 3600 * 1000),
-                expiresAt = null,
-                notes = "Owner & System Administrator"
-            ),
-            AppUser(
-                email = "fatima.zahra@gmail.com",
-                displayName = "Fatima Zahra",
-                isPremium = false,
-                planType = "Free",
-                role = "USER",
-                registeredDate = now - (3L * 24 * 3600 * 1000),
-                notes = "Active daily reader"
-            ),
-            AppUser(
-                email = "omar.khattab@gmail.com",
-                displayName = "Omar Al-Khattab",
-                isPremium = true,
-                planType = "Annual Pro",
-                role = "USER",
-                registeredDate = now - (15L * 24 * 3600 * 1000),
-                expiresAt = now + (350L * 24 * 3600 * 1000),
-                notes = "Annual Subscriber via Google Play"
-            ),
-            AppUser(
-                email = "aisha.malik@gmail.com",
-                displayName = "Aisha Malik",
-                isPremium = true,
-                planType = "Monthly Pro",
-                role = "USER",
-                registeredDate = now - (8L * 24 * 3600 * 1000),
-                expiresAt = now + (22L * 24 * 3600 * 1000),
-                notes = "Monthly subscriber"
-            ),
-            AppUser(
-                email = "zayd.ansari@outlook.com",
-                displayName = "Zayd Ansari",
-                isPremium = false,
-                planType = "Free",
-                role = "USER",
-                registeredDate = now - (20L * 24 * 3600 * 1000),
-                notes = "Exploring Quran and Duas"
-            ),
-            AppUser(
-                email = "tariq.mansoor@gmail.com",
-                displayName = "Tariq Mansoor",
-                isPremium = false,
-                planType = "Free",
-                role = "USER",
-                registeredDate = now - (2L * 24 * 3600 * 1000),
-                notes = "New sign-up"
-            ),
-            AppUser(
-                email = "bilal.habashi@gmail.com",
-                displayName = "Bilal Habashi",
-                isPremium = true,
-                planType = "Lifetime VIP",
-                role = "USER",
-                registeredDate = now - (90L * 24 * 3600 * 1000),
-                expiresAt = null,
-                notes = "Early lifetime backer"
-            )
+    suspend fun saveQuranReadingPosition(pos: QuranReadingPosition) {
+        dao.saveQuranReadingPosition(pos)
+    }
+
+    suspend fun addQuranNote(note: QuranNote): Long {
+        return dao.insertQuranNote(note)
+    }
+
+    suspend fun deleteQuranNote(id: Long) {
+        dao.deleteQuranNote(id)
+    }
+
+    // Hadith Reading Position & Notes
+    val hadithReadingPosition: Flow<HadithReadingPosition?> = dao.getHadithReadingPosition()
+    val allHadithNotes: Flow<List<HadithNote>> = dao.getAllHadithNotes()
+
+    suspend fun saveHadithReadingPosition(pos: HadithReadingPosition) {
+        dao.saveHadithReadingPosition(pos)
+    }
+
+    suspend fun addHadithNote(note: HadithNote): Long {
+        return dao.insertHadithNote(note)
+    }
+
+    suspend fun deleteHadithNote(id: Long) {
+        dao.deleteHadithNote(id)
+    }
+
+    // Khatam Progress
+    val khatamProgress: Flow<KhatamProgress?> = dao.getKhatamProgress()
+
+    suspend fun saveKhatamProgress(progress: KhatamProgress) {
+        dao.saveKhatamProgress(progress)
+    }
+
+    suspend fun seedInitialUsersIfNeeded() {
+        val adminUser = AppUser(
+            email = "aqiffarooqui@gmail.com",
+            displayName = "Aqif Farooqui",
+            photoUrl = "",
+            isPremium = true,
+            planType = "Lifetime VIP",
+            role = "ADMIN",
+            registeredDate = System.currentTimeMillis() - (90L * 24 * 3600 * 1000),
+            notes = "Super Administrator"
         )
-        dao.insertUsersIfNotExist(initialList)
+        dao.insertUser(adminUser)
     }
 }

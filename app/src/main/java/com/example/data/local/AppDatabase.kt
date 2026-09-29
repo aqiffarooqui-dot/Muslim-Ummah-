@@ -6,8 +6,18 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [TasbihRecord::class, PrayerTrackerRecord::class, Bookmark::class, AppUser::class],
-    version = 2,
+    entities = [
+        TasbihRecord::class,
+        PrayerTrackerRecord::class,
+        Bookmark::class,
+        AppUser::class,
+        QuranReadingPosition::class,
+        QuranNote::class,
+        HadithReadingPosition::class,
+        HadithNote::class,
+        KhatamProgress::class
+    ],
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -22,7 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "muslim_pro_db"
+                    "muslim_ummah_db"
                 ).fallbackToDestructiveMigration().build()
                 INSTANCE = instance
                 instance

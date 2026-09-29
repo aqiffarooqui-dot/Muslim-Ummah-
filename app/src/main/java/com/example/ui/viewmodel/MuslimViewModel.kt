@@ -11,6 +11,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.*
 import com.example.data.model.*
+import com.example.data.subscription.EntitlementState
+import com.example.data.subscription.PremiumEntitlement
+import com.example.data.subscription.SubscriptionManager
+import com.example.ui.theme.AppThemeType
+import com.example.ui.theme.ThemeManager
 import com.example.ui.util.AudioPlaybackState
 import com.example.ui.util.AudioRecitationPlayer
 import com.example.ui.util.CompassSensorManager
@@ -54,6 +59,8 @@ data class MuslimUiState(
     val compassAccuracy: Int = 3, // 3 = SENSOR_STATUS_ACCURACY_HIGH
     val compassOffsetDegrees: Float = 0f,
     val isLocating: Boolean = false,
+    // Theme
+    val currentTheme: AppThemeType = AppThemeType.EMERALD,
     // Tasbih
     val currentDhikrIndex: Int = 0,
     val tasbihCount: Int = 0,
@@ -64,6 +71,11 @@ data class MuslimUiState(
     val quranSearchQuery: String = "",
     val selectedSurahNumber: Int = 1,
     val selectedReciter: String = "Sheikh Mishary Rashid Alafasy",
+    val lastQuranPosition: QuranReadingPosition? = null,
+    // Hadith
+    val lastHadithPosition: HadithReadingPosition? = null,
+    // Khatam
+    val khatamProgress: KhatamProgress? = null,
     // Duas
     val duaCategory: String = "All",
     val duaSearchQuery: String = "",
@@ -80,6 +92,7 @@ data class MuslimUiState(
     ),
     // Auth & Subscription
     val currentUser: AppUser? = GoogleAuthManager.createDefaultAdminUser(),
+    val entitlement: PremiumEntitlement = PremiumEntitlement(state = EntitlementState.PREMIUM, isAdFree = true),
     val isAdmin: Boolean = true,
     val isPremium: Boolean = true,
     val showPaywallModal: Boolean = false,
@@ -99,29 +112,6 @@ data class MuslimUiState(
 )
 
 class MuslimViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val repository: MuslimRepository
-    val audioPlayer = AudioRecitationPlayer(application)
-    private val compassManager = CompassSensorManager(application)
-    private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val vibratorManager = application.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-        vibratorManager?.defaultVibrator
-    } else {
-        @Suppress("DEPRECATION")
-        application.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-    }
-
-    private val _uiState = MutableStateFlow(MuslimUiState())
-    val uiState: StateFlow<MuslimUiState> = _uiState.asStateFlow()
-
-    val audioState: StateFlow<AudioPlaybackState> = audioPlayer.playbackState
-
-    val bookmarks: StateFlow<List<Bookmark>>
-    val tasbihHistory: StateFlow<List<TasbihRecord>>
-    val allUsers: StateFlow<List<AppUser>>
-
-    private var timerJob: Job? = null
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
     companion object {
         val PREMIUM_FEATURES_CATALOG = listOf(
@@ -170,6 +160,31 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
+    private val repository: MuslimRepository
+    val audioPlayer = AudioRecitationPlayer(application)
+    private val compassManager = CompassSensorManager(application)
+    private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val vibratorManager = application.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+        vibratorManager?.defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        application.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    }
+
+    private val _uiState = MutableStateFlow(MuslimUiState())
+    val uiState: StateFlow<MuslimUiState> = _uiState.asStateFlow()
+
+    val audioState: StateFlow<AudioPlaybackState> = audioPlayer.playbackState
+
+    val bookmarks: StateFlow<List<Bookmark>>
+    val tasbihHistory: StateFlow<List<TasbihRecord>>
+    val allUsers: StateFlow<List<AppUser>>
+    val quranNotes: StateFlow<List<QuranNote>>
+    val hadithNotes: StateFlow<List<HadithNote>>
+
+    private var timerJob: Job? = null
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
     init {
         val database = AppDatabase.getDatabase(application)
         repository = MuslimRepository(database.muslimDao())
@@ -192,11 +207,52 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             emptyList()
         )
 
+        quranNotes = repository.allQuranNotes.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
+        hadithNotes = repository.allHadithNotes.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
         viewModelScope.launch {
             repository.seedInitialUsersIfNeeded()
             val defaultAdmin = GoogleAuthManager.createDefaultAdminUser()
             repository.saveUser(defaultAdmin)
             checkAndUpdateUserStatus(defaultAdmin)
+        }
+
+        viewModelScope.launch {
+            repository.quranReadingPosition.collect { pos ->
+                _uiState.update { it.copy(lastQuranPosition = pos) }
+            }
+        }
+
+        viewModelScope.launch {
+            repository.hadithReadingPosition.collect { pos ->
+                _uiState.update { it.copy(lastHadithPosition = pos) }
+            }
+        }
+
+        viewModelScope.launch {
+            repository.khatamProgress.collect { progress ->
+                _uiState.update { it.copy(khatamProgress = progress) }
+            }
+        }
+
+        viewModelScope.launch {
+            SubscriptionManager.entitlementFlow.collect { ent ->
+                _uiState.update {
+                    it.copy(
+                        entitlement = ent,
+                        isPremium = ent.isPremiumActive || it.isAdmin
+                    )
+                }
+            }
         }
 
         recalculatePrayerTimes()
@@ -215,11 +271,14 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                     isPremium = false
                 )
             }
+            SubscriptionManager.updateEntitlementForUser("", false, "Free", null)
             return
         }
 
         val isAdmin = GoogleAuthManager.isAdminEmail(user.email)
         val isPremium = isAdmin || user.isPremium
+
+        SubscriptionManager.updateEntitlementForUser(user.email, isPremium, user.planType, user.expiresAt)
 
         _uiState.update {
             it.copy(
@@ -245,7 +304,6 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                 checkAndUpdateUserStatus(user)
                 showStatus("Signed in with Google: ${user.displayName} (${user.email})")
             }.onFailure {
-                // If on device without configured Play Store, authenticate default Admin
                 val fallbackUser = GoogleAuthManager.createDefaultAdminUser()
                 repository.saveUser(fallbackUser)
                 checkAndUpdateUserStatus(fallbackUser)
@@ -279,6 +337,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                 isPremium = false
             )
         }
+        SubscriptionManager.updateEntitlementForUser("", false, "Free", null)
         showStatus("Signed out successfully.")
     }
 
@@ -323,6 +382,129 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         compassManager.setCalibrationOffset(0f)
         _uiState.update { it.copy(compassOffsetDegrees = 0f) }
         showStatus("Compass calibration reset to 0°")
+    }
+
+    // ==========================================
+    // Theme Selection
+    // ==========================================
+
+    fun setTheme(theme: AppThemeType) {
+        ThemeManager.setTheme(theme)
+        _uiState.update { it.copy(currentTheme = theme) }
+        showStatus("Theme updated to ${theme.title}")
+    }
+
+    // ==========================================
+    // Quran & Hadith Reading Positions & Notes
+    // ==========================================
+
+    fun saveQuranReadingPosition(surahNumber: Int, ayahNumber: Int, surahName: String) {
+        viewModelScope.launch {
+            val pos = QuranReadingPosition(
+                surahNumber = surahNumber,
+                ayahNumber = ayahNumber,
+                surahName = surahName,
+                paraNumber = 1
+            )
+            repository.saveQuranReadingPosition(pos)
+        }
+    }
+
+    fun addQuranNote(surahNumber: Int, ayahNumber: Int, surahName: String, text: String) {
+        viewModelScope.launch {
+            val note = QuranNote(
+                surahNumber = surahNumber,
+                ayahNumber = ayahNumber,
+                surahName = surahName,
+                noteText = text
+            )
+            repository.addQuranNote(note)
+            showStatus("Note saved for Surah $surahName Ayah $ayahNumber")
+        }
+    }
+
+    fun saveHadithReadingPosition(bookId: String, chapterName: String, hadithId: Int, hadithNumber: String) {
+        viewModelScope.launch {
+            val pos = HadithReadingPosition(
+                bookId = bookId,
+                chapterName = chapterName,
+                hadithId = hadithId,
+                hadithNumber = hadithNumber
+            )
+            repository.saveHadithReadingPosition(pos)
+        }
+    }
+
+    fun addHadithNote(bookId: String, hadithId: Int, text: String) {
+        viewModelScope.launch {
+            val note = HadithNote(
+                bookId = bookId,
+                hadithId = hadithId,
+                noteText = text
+            )
+            repository.addHadithNote(note)
+            showStatus("Note saved for Hadith #$hadithId")
+        }
+    }
+
+    fun updateKhatamPages(completed: Int) {
+        viewModelScope.launch {
+            val current = _uiState.value.khatamProgress ?: KhatamProgress()
+            val updated = current.copy(
+                completedPages = completed.coerceIn(0, 604),
+                isCompleted = completed >= 604,
+                lastUpdated = System.currentTimeMillis()
+            )
+            repository.saveKhatamProgress(updated)
+            showStatus("Khatam progress updated: $completed / 604 pages")
+        }
+    }
+
+    // ==========================================
+    // Subscription & Paywall
+    // ==========================================
+
+    fun showPaywall(featureName: String = "Muslim Ummah Premium") {
+        _uiState.update {
+            it.copy(
+                showPaywallModal = true,
+                paywallTriggerFeature = featureName
+            )
+        }
+    }
+
+    fun dismissPaywall() {
+        _uiState.update { it.copy(showPaywallModal = false) }
+    }
+
+    fun subscribePlan(planType: String) {
+        val user = _uiState.value.currentUser
+        if (user == null) {
+            loginAsAdmin()
+            return
+        }
+
+        viewModelScope.launch {
+            val durationDays = when (planType) {
+                "Monthly Pro" -> 30
+                "Annual Pro" -> 365
+                else -> null
+            }
+            updateUserSubscription(user.email, true, planType, durationDays)
+            dismissPaywall()
+            showStatus("Alhamdulillah! You are now subscribed to $planType.")
+        }
+    }
+
+    fun restorePurchases() {
+        viewModelScope.launch {
+            val result = SubscriptionManager.restorePurchases()
+            result.onSuccess {
+                showStatus("Purchases successfully restored!")
+            }.onFailure {
+                showStatus(it.message ?: "No purchases to restore.")
+            }
+        }
     }
 
     // ==========================================
@@ -381,42 +563,6 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             )
             repository.saveUser(newUser)
             showStatus("Created user $email successfully.")
-        }
-    }
-
-    // ==========================================
-    // Paywall & Subscription Activation (INR)
-    // ==========================================
-
-    fun showPaywall(featureName: String = "Premium Pro") {
-        _uiState.update {
-            it.copy(
-                showPaywallModal = true,
-                paywallTriggerFeature = featureName
-            )
-        }
-    }
-
-    fun dismissPaywall() {
-        _uiState.update { it.copy(showPaywallModal = false) }
-    }
-
-    fun subscribePlan(planType: String) {
-        val user = _uiState.value.currentUser
-        if (user == null) {
-            loginAsAdmin()
-            return
-        }
-
-        viewModelScope.launch {
-            val durationDays = when (planType) {
-                "Monthly Pro" -> 30
-                "Annual Pro" -> 365
-                else -> null
-            }
-            updateUserSubscription(user.email, true, planType, durationDays)
-            dismissPaywall()
-            showStatus("Alhamdulillah! You are now subscribed to $planType.")
         }
     }
 
@@ -675,7 +821,8 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
 
     fun playSurahAudio(surahNumber: Int) {
         val surah = QuranRepository.ALL_SURAHS.find { it.number == surahNumber } ?: return
-        audioPlayer.play(surah.number, "Surah ${surah.nameEnglish} (${_uiState.value.selectedReciter})", surah.audioUrl)
+        val reciter = QuranReciter.ALL_RECITERS.find { it.name == _uiState.value.selectedReciter } ?: QuranReciter.ALL_RECITERS[0]
+        audioPlayer.play(surah.number, "Surah ${surah.nameEnglish} (${reciter.name})", surah.getAudioUrl(reciter.id))
     }
 
     // Duas Actions

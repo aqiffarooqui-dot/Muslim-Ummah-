@@ -14,7 +14,10 @@ data class AudioPlaybackState(
     val currentSurahOrDuaId: Int? = null,
     val title: String = "",
     val error: String? = null
-)
+) {
+    val currentSurahNumber: Int?
+        get() = currentSurahOrDuaId
+}
 
 class AudioRecitationPlayer(private val context: Context) {
     private var mediaPlayer: MediaPlayer? = null

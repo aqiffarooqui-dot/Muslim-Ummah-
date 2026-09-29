@@ -27,8 +27,8 @@ data class PrayerTrackerRecord(
 @Entity(tableName = "bookmarks")
 data class Bookmark(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val type: String, // "QURAN_SURAH", "QURAN_AYAH", "DUA"
-    val referenceId: Int, // Surah number, Ayah number, or Dua id
+    val type: String, // "QURAN_SURAH", "QURAN_AYAH", "HADITH", "DUA"
+    val referenceId: Int, // Surah number, Hadith ID, or Dua ID
     val secondaryId: Int = 0, // Ayah number if type is QURAN_AYAH
     val title: String,
     val subtitle: String,
@@ -48,3 +48,53 @@ data class AppUser(
     val notes: String = ""
 )
 
+@Entity(tableName = "quran_reading_position")
+data class QuranReadingPosition(
+    @PrimaryKey val id: Int = 1,
+    val surahNumber: Int = 1,
+    val ayahNumber: Int = 1,
+    val surahName: String = "Al-Fatihah",
+    val paraNumber: Int = 1,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "quran_notes")
+data class QuranNote(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val surahNumber: Int,
+    val ayahNumber: Int,
+    val surahName: String,
+    val noteText: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "hadith_reading_position")
+data class HadithReadingPosition(
+    @PrimaryKey val id: Int = 1,
+    val bookId: String = "bukhari",
+    val bookName: String = "Sahih al-Bukhari",
+    val chapterName: String = "Revelation",
+    val hadithId: Int = 1,
+    val hadithNumber: String = "Hadith 1",
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "hadith_notes")
+data class HadithNote(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val bookId: String,
+    val hadithId: Int,
+    val noteText: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "khatam_progress")
+data class KhatamProgress(
+    @PrimaryKey val id: Int = 1,
+    val targetDateMillis: Long = System.currentTimeMillis() + (30L * 24 * 3600 * 1000), // 30 days
+    val totalPages: Int = 604,
+    val completedPages: Int = 0,
+    val dailyTargetPages: Int = 20,
+    val isCompleted: Boolean = false,
+    val lastUpdated: Long = System.currentTimeMillis()
+)
