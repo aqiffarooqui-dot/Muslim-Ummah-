@@ -59,4 +59,11 @@ class ExampleRobolectricTest {
         assertTrue(hijriDate.day in 1..30)
         assertTrue(hijriDate.monthNumber in 1..12)
     }
+
+    @Test
+    fun `admin check confirms aqiffarooqui email as super admin`() {
+        assertTrue(com.example.ui.util.GoogleAuthManager.isAdminEmail("aqiffarooqui@gmail.com"))
+        assertTrue(com.example.ui.util.GoogleAuthManager.isAdminEmail("AqifFarooqui@Gmail.Com"))
+        org.junit.Assert.assertFalse(com.example.ui.util.GoogleAuthManager.isAdminEmail("other.user@gmail.com"))
+    }
 }

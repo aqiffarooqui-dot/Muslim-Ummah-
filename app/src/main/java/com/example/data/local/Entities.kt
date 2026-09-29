@@ -34,3 +34,17 @@ data class Bookmark(
     val subtitle: String,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "app_users")
+data class AppUser(
+    @PrimaryKey val email: String,
+    val displayName: String,
+    val photoUrl: String = "",
+    val isPremium: Boolean = false,
+    val planType: String = "Free", // "Free", "Monthly Pro", "Annual Pro", "Lifetime VIP"
+    val role: String = "USER", // "ADMIN" or "USER"
+    val registeredDate: Long = System.currentTimeMillis(),
+    val expiresAt: Long? = null,
+    val notes: String = ""
+)
+

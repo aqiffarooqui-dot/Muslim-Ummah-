@@ -44,6 +44,8 @@ fun HomeScreen(
     onNavigate: (String) -> Unit,
     onTogglePrayer: (String) -> Unit,
     onSelectCity: (CityLocation) -> Unit,
+    onOpenPaywall: () -> Unit = {},
+    onOpenAuth: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showCityDialog by remember { mutableStateOf(false) }
@@ -59,7 +61,25 @@ fun HomeScreen(
             .testTag("home_screen_scroll"),
         contentPadding = PaddingValues(bottom = 96.dp)
     ) {
-        // Top App Bar Greeting & Location
+        // Status Message Banner (Toast/Alert)
+        if (uiState.statusMessage != null) {
+            item {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = uiState.statusMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        // Top App Bar Greeting, User Account & Location
         item {
             Column(
                 modifier = Modifier
@@ -71,13 +91,30 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "Assalamu Alaikum",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Assalamu Alaikum",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (uiState.isAdmin) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFFFD54F)
+                                ) {
+                                    Text(
+                                        text = "👑 ADMIN",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF19362E),
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
+                        }
                         Text(
                             text = uiState.currentHijriDate.formatted,
                             style = MaterialTheme.typography.bodyMedium,
@@ -91,33 +128,110 @@ fun HomeScreen(
                         )
                     }
 
-                    // Location Button
-                    Surface(
-                        onClick = { showCityDialog = true },
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier
-                            .minimumInteractiveComponentSize()
-                            .testTag("location_selector_btn")
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    // Account & Location Row
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            onClick = onOpenAuth,
+                            shape = CircleShape,
+                            color = if (uiState.isAdmin) Color(0xFFFFD54F).copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .testTag("home_user_account_btn")
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = "Location",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = uiState.selectedCity.name,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                if (uiState.isAdmin) {
+                                    Text(text = "👑", fontSize = 16.sp)
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.AccountCircle,
+                                        contentDescription = "Profile",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Location Button
+                        Surface(
+                            onClick = { showCityDialog = true },
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("location_selector_btn")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = "Location",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = uiState.selectedCity.name,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Premium Upgrade Banner (if not premium)
+        if (!uiState.isPremium) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 6.dp)
+                        .clickable { onOpenPaywall() }
+                        .testTag("home_upgrade_premium_banner"),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.WorkspacePremium,
+                                contentDescription = "Upgrade",
+                                tint = GoldSecondary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Upgrade to Muslim Pro Premium",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    text = "Ad-free • 5 Reciters • Historic Adhans • Qada Tracker",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Go",
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
                     }
                 }
             }
@@ -314,6 +428,41 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f),
                         onClick = { onNavigate("calendar") }
                     )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    QuickActionCard(
+                        title = "Ramadan & Qada",
+                        subtitle = "Suhoor, Iftar, Qada Salah",
+                        icon = Icons.Default.Restaurant,
+                        accentColor = Color(0xFFD84315),
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigate("fasting_qada") }
+                    )
+                    if (uiState.isAdmin) {
+                        QuickActionCard(
+                            title = "Admin Console",
+                            subtitle = "Manage Users & Pro",
+                            icon = Icons.Default.AdminPanelSettings,
+                            accentColor = GoldSecondary,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onNavigate("admin") }
+                        )
+                    } else {
+                        QuickActionCard(
+                            title = "Premium Features",
+                            subtitle = if (uiState.isPremium) "VIP Activated" else "Upgrade to Pro",
+                            icon = Icons.Default.WorkspacePremium,
+                            accentColor = GoldSecondary,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onOpenPaywall() }
+                        )
+                    }
                 }
             }
         }

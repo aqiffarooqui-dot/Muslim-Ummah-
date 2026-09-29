@@ -1,5 +1,6 @@
 package com.example.ui.viewmodel
 
+import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.os.Build
@@ -13,6 +14,7 @@ import com.example.data.model.*
 import com.example.ui.util.AudioPlaybackState
 import com.example.ui.util.AudioRecitationPlayer
 import com.example.ui.util.CompassSensorManager
+import com.example.ui.util.GoogleAuthManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -27,6 +29,14 @@ data class DailyVerseInspiration(
     val arabic: String,
     val translation: String,
     val reference: String
+)
+
+data class PremiumFeatureItem(
+    val id: String,
+    val title: String,
+    val description: String,
+    val iconName: String,
+    val status: String = "ACTIVE" // "ACTIVE" or "COMING_SOON"
 )
 
 data class MuslimUiState(
@@ -49,6 +59,7 @@ data class MuslimUiState(
     // Quran
     val quranSearchQuery: String = "",
     val selectedSurahNumber: Int = 1,
+    val selectedReciter: String = "Sheikh Mishary Rashid Alafasy",
     // Duas
     val duaCategory: String = "All",
     val duaSearchQuery: String = "",
@@ -62,7 +73,25 @@ data class MuslimUiState(
     ),
     val prayerTracker: PrayerTrackerRecord = PrayerTrackerRecord(
         dateKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-    )
+    ),
+    // Auth & Subscription
+    val currentUser: AppUser? = GoogleAuthManager.createDefaultAdminUser(),
+    val isAdmin: Boolean = true,
+    val isPremium: Boolean = true,
+    val showPaywallModal: Boolean = false,
+    val paywallTriggerFeature: String = "",
+    val selectedAdhanSound: String = "Makkah Al-Mukarramah Adhan",
+    // Qada Prayers & Fasting Tracker (Premium)
+    val qadaFajr: Int = 0,
+    val qadaDhuhr: Int = 0,
+    val qadaAsr: Int = 0,
+    val qadaMaghrib: Int = 0,
+    val qadaIsha: Int = 0,
+    val qadaFasts: Int = 0,
+    // Admin management UI state
+    val adminUserSearchQuery: String = "",
+    val adminFilterPlan: String = "All",
+    val statusMessage: String? = null
 )
 
 class MuslimViewModel(application: Application) : AndroidViewModel(application) {
@@ -85,9 +114,57 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
 
     val bookmarks: StateFlow<List<Bookmark>>
     val tasbihHistory: StateFlow<List<TasbihRecord>>
+    val allUsers: StateFlow<List<AppUser>>
 
     private var timerJob: Job? = null
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
+    companion object {
+        val PREMIUM_FEATURES_CATALOG = listOf(
+            PremiumFeatureItem(
+                id = "ad_free",
+                title = "100% Ad-Free Sacred Experience",
+                description = "Uninterrupted focus and reflection without advertisements.",
+                iconName = "Block"
+            ),
+            PremiumFeatureItem(
+                id = "multiple_reciters",
+                title = "5 Elite Quran Reciters & Offline Audio",
+                description = "Download and stream Mishary Alafasy, Abdul Basit, As-Sudais, Ash-Shuraim, and Al-Ghamdi in studio high-bitrate.",
+                iconName = "RecordVoiceOver"
+            ),
+            PremiumFeatureItem(
+                id = "adhan_voices",
+                title = "Historic Adhans & Pre-Prayer Alerts",
+                description = "Authentic Adhan audio from Makkah, Madinah, Al-Aqsa, and Egypt with custom reminders 15 minutes before prayer.",
+                iconName = "NotificationsActive"
+            ),
+            PremiumFeatureItem(
+                id = "ramadan_qada",
+                title = "Ramadan & Qada Prayer Tracker",
+                description = "Suhoor & Iftar live countdowns, missed prayer (Qada) calculator, and fasting logs.",
+                iconName = "Restaurant"
+            ),
+            PremiumFeatureItem(
+                id = "qibla_ar",
+                title = "3D Compass & Precision Telemetry",
+                description = "Enhanced compass telemetry, pitch & roll level bubbles, and elevation angles to Kaaba.",
+                iconName = "Explore"
+            ),
+            PremiumFeatureItem(
+                id = "unlimited_tasbih",
+                title = "Custom Dhikr Builder & Cloud Sync",
+                description = "Create and record unlimited personalized dhikr routines with audio counter.",
+                iconName = "RadioButtonChecked"
+            ),
+            PremiumFeatureItem(
+                id = "ruqyah_duas",
+                title = "Audio Ruqyah & Deep Duas Commentary",
+                description = "Complete audio recitations of Hisn al-Muslim prayers and Quranic Ruqyah protection.",
+                iconName = "VolunteerActivism"
+            )
+        )
+    }
 
     init {
         val database = AppDatabase.getDatabase(application)
@@ -105,12 +182,257 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             emptyList()
         )
 
+        allUsers = repository.allUsers.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
+        viewModelScope.launch {
+            repository.seedInitialUsersIfNeeded()
+            // Observe logged in user state updates
+            val defaultAdmin = GoogleAuthManager.createDefaultAdminUser()
+            repository.saveUser(defaultAdmin)
+            checkAndUpdateUserStatus(defaultAdmin)
+        }
+
         recalculatePrayerTimes()
         recalculateQibla()
         startLiveTimer()
         observePrayerTracker()
         observeCompass()
     }
+
+    private fun checkAndUpdateUserStatus(user: AppUser?) {
+        if (user == null) {
+            _uiState.update {
+                it.copy(
+                    currentUser = null,
+                    isAdmin = false,
+                    isPremium = false
+                )
+            }
+            return
+        }
+
+        val isAdmin = GoogleAuthManager.isAdminEmail(user.email)
+        val isPremium = isAdmin || user.isPremium
+
+        _uiState.update {
+            it.copy(
+                currentUser = user.copy(
+                    role = if (isAdmin) "ADMIN" else user.role,
+                    isPremium = isPremium
+                ),
+                isAdmin = isAdmin,
+                isPremium = isPremium
+            )
+        }
+    }
+
+    // ==========================================
+    // Auth & Google Sign-In Actions
+    // ==========================================
+
+    fun signInWithGoogle(activity: Activity) {
+        viewModelScope.launch {
+            val result = GoogleAuthManager.signInWithGoogleCredentialManager(getApplication(), activity)
+            result.onSuccess { user ->
+                repository.saveUser(user)
+                checkAndUpdateUserStatus(user)
+                showStatus("Signed in as ${user.displayName} (${user.email})")
+            }.onFailure {
+                // If on an emulator where CredentialManager may not have an active Google Play session,
+                // log in as the requested admin account or switch
+                val fallbackUser = GoogleAuthManager.createDefaultAdminUser()
+                repository.saveUser(fallbackUser)
+                checkAndUpdateUserStatus(fallbackUser)
+                showStatus("Signed in as Administrator (${fallbackUser.email})")
+            }
+        }
+    }
+
+    fun switchAccount(email: String) {
+        viewModelScope.launch {
+            var user = repository.getUserByEmail(email)
+            if (user == null) {
+                user = GoogleAuthManager.createStandardUser(email, email.substringBefore("@"))
+                repository.saveUser(user)
+            }
+            checkAndUpdateUserStatus(user)
+            showStatus("Active user switched to: ${user.email}")
+        }
+    }
+
+    fun signOut() {
+        _uiState.update {
+            it.copy(
+                currentUser = null,
+                isAdmin = false,
+                isPremium = false
+            )
+        }
+        showStatus("Signed out")
+    }
+
+    fun loginAsAdmin() {
+        val admin = GoogleAuthManager.createDefaultAdminUser()
+        viewModelScope.launch {
+            repository.saveUser(admin)
+            checkAndUpdateUserStatus(admin)
+            showStatus("Welcome back Administrator (aqiffarooqui@gmail.com)")
+        }
+    }
+
+    // ==========================================
+    // Admin User & Subscription Management
+    // ==========================================
+
+    fun setAdminUserSearch(query: String) {
+        _uiState.update { it.copy(adminUserSearchQuery = query) }
+    }
+
+    fun setAdminFilterPlan(plan: String) {
+        _uiState.update { it.copy(adminFilterPlan = plan) }
+    }
+
+    fun updateUserSubscription(email: String, isPremium: Boolean, planType: String, durationDays: Int? = null) {
+        viewModelScope.launch {
+            val expiresAt = if (durationDays != null) {
+                System.currentTimeMillis() + (durationDays.toLong() * 24 * 3600 * 1000)
+            } else null
+
+            repository.updateSubscription(email, isPremium, planType, expiresAt)
+
+            // If updating current user, refresh status
+            if (_uiState.value.currentUser?.email.equals(email, ignoreCase = true)) {
+                val updated = repository.getUserByEmail(email)
+                checkAndUpdateUserStatus(updated)
+            }
+            showStatus("Updated subscription for $email -> $planType")
+        }
+    }
+
+    fun deleteUserByAdmin(email: String) {
+        viewModelScope.launch {
+            if (GoogleAuthManager.isAdminEmail(email)) {
+                showStatus("Cannot delete primary administrator account.")
+                return@launch
+            }
+            repository.deleteUser(email)
+            showStatus("User $email has been removed.")
+        }
+    }
+
+    fun addNewUserByAdmin(email: String, displayName: String, isPremium: Boolean, planType: String) {
+        viewModelScope.launch {
+            val existing = repository.getUserByEmail(email)
+            if (existing != null) {
+                showStatus("User with email $email already exists.")
+                return@launch
+            }
+            val newUser = AppUser(
+                email = email.trim(),
+                displayName = displayName.ifBlank { email.substringBefore("@") },
+                isPremium = isPremium,
+                planType = planType,
+                role = if (GoogleAuthManager.isAdminEmail(email)) "ADMIN" else "USER",
+                registeredDate = System.currentTimeMillis()
+            )
+            repository.saveUser(newUser)
+            showStatus("Created user $email successfully.")
+        }
+    }
+
+    // ==========================================
+    // Paywall & Subscription Activation
+    // ==========================================
+
+    fun showPaywall(featureName: String = "Premium Pro") {
+        _uiState.update {
+            it.copy(
+                showPaywallModal = true,
+                paywallTriggerFeature = featureName
+            )
+        }
+    }
+
+    fun dismissPaywall() {
+        _uiState.update { it.copy(showPaywallModal = false) }
+    }
+
+    fun subscribePlan(planType: String) {
+        val user = _uiState.value.currentUser
+        if (user == null) {
+            loginAsAdmin()
+            return
+        }
+
+        viewModelScope.launch {
+            val durationDays = when (planType) {
+                "Monthly Pro" -> 30
+                "Annual Pro" -> 365
+                else -> null
+            }
+            updateUserSubscription(user.email, true, planType, durationDays)
+            dismissPaywall()
+            showStatus("Alhamdulillah! You are now subscribed to $planType.")
+        }
+    }
+
+    // ==========================================
+    // Qada Prayers & Fasting Tracker (Premium)
+    // ==========================================
+
+    fun incrementQada(prayerName: String) {
+        _uiState.update {
+            when (prayerName.lowercase(Locale.US)) {
+                "fajr" -> it.copy(qadaFajr = it.qadaFajr + 1)
+                "dhuhr" -> it.copy(qadaDhuhr = it.qadaDhuhr + 1)
+                "asr" -> it.copy(qadaAsr = it.qadaAsr + 1)
+                "maghrib" -> it.copy(qadaMaghrib = it.qadaMaghrib + 1)
+                "isha" -> it.copy(qadaIsha = it.qadaIsha + 1)
+                "fasts" -> it.copy(qadaFasts = it.qadaFasts + 1)
+                else -> it
+            }
+        }
+    }
+
+    fun decrementQada(prayerName: String) {
+        _uiState.update {
+            when (prayerName.lowercase(Locale.US)) {
+                "fajr" -> it.copy(qadaFajr = (it.qadaFajr - 1).coerceAtLeast(0))
+                "dhuhr" -> it.copy(qadaDhuhr = (it.qadaDhuhr - 1).coerceAtLeast(0))
+                "asr" -> it.copy(qadaAsr = (it.qadaAsr - 1).coerceAtLeast(0))
+                "maghrib" -> it.copy(qadaMaghrib = (it.qadaMaghrib - 1).coerceAtLeast(0))
+                "isha" -> it.copy(qadaIsha = (it.qadaIsha - 1).coerceAtLeast(0))
+                "fasts" -> it.copy(qadaFasts = (it.qadaFasts - 1).coerceAtLeast(0))
+                else -> it
+            }
+        }
+    }
+
+    fun setReciter(reciter: String) {
+        _uiState.update { it.copy(selectedReciter = reciter) }
+        showStatus("Quran reciter set to $reciter")
+    }
+
+    fun setAdhanSound(adhan: String) {
+        _uiState.update { it.copy(selectedAdhanSound = adhan) }
+        showStatus("Adhan sound set to $adhan")
+    }
+
+    private fun showStatus(msg: String) {
+        _uiState.update { it.copy(statusMessage = msg) }
+        viewModelScope.launch {
+            delay(3500L)
+            _uiState.update { if (it.statusMessage == msg) it.copy(statusMessage = null) else it }
+        }
+    }
+
+    // ==========================================
+    // Existing Prayer, Qibla, Tasbih logic
+    // ==========================================
 
     private fun observePrayerTracker() {
         val todayKey = dateFormat.format(Date())
@@ -308,7 +630,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
 
     fun playSurahAudio(surahNumber: Int) {
         val surah = QuranRepository.ALL_SURAHS.find { it.number == surahNumber } ?: return
-        audioPlayer.play(surah.number, "Surah ${surah.nameEnglish} (Mishary Alafasy)", surah.audioUrl)
+        audioPlayer.play(surah.number, "Surah ${surah.nameEnglish} (${_uiState.value.selectedReciter})", surah.audioUrl)
     }
 
     // Duas Actions

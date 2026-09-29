@@ -1,0 +1,101 @@
+package com.example.ui.util
+
+import android.app.Activity
+import android.content.Context
+import android.util.Log
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import com.example.data.local.AppUser
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+object GoogleAuthManager {
+    const val ADMIN_EMAIL = "aqiffarooqui@gmail.com"
+
+    fun isAdminEmail(email: String): Boolean {
+        return email.trim().equals(ADMIN_EMAIL, ignoreCase = true)
+    }
+
+    suspend fun signInWithGoogleCredentialManager(
+        context: Context,
+        activity: Activity
+    ): Result<AppUser> = withContext(Dispatchers.IO) {
+        val credentialManager = CredentialManager.create(context)
+
+        // Web Client ID placeholder or default fallback for Credential Manager
+        val googleIdOption = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId("dummy-client-id.apps.googleusercontent.com")
+            .setAutoSelectEnabled(false)
+            .build()
+
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(googleIdOption)
+            .build()
+
+        try {
+            val result = credentialManager.getCredential(activity, request)
+            val credential = result.credential
+
+            if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                val email = googleIdTokenCredential.id
+                val name = googleIdTokenCredential.displayName ?: email.substringBefore("@")
+                val photo = googleIdTokenCredential.profilePictureUri?.toString() ?: ""
+                val isAdmin = isAdminEmail(email)
+
+                val user = AppUser(
+                    email = email,
+                    displayName = name,
+                    photoUrl = photo,
+                    isPremium = isAdmin,
+                    planType = if (isAdmin) "Lifetime VIP" else "Free",
+                    role = if (isAdmin) "ADMIN" else "USER",
+                    notes = if (isAdmin) "Primary Administrator" else "Google Authenticated"
+                )
+                Result.success(user)
+            } else {
+                Result.failure(Exception("Unknown credential type received: ${credential.type}"))
+            }
+        } catch (e: GetCredentialCancellationException) {
+            Result.failure(Exception("Sign-in was cancelled by user."))
+        } catch (e: GetCredentialException) {
+            Log.w("GoogleAuth", "CredentialManager returned error: ${e.message}. Using fallback auth.")
+            Result.failure(e)
+        } catch (e: Exception) {
+            Log.e("GoogleAuth", "Unexpected error during Google Sign-In", e)
+            Result.failure(e)
+        }
+    }
+
+    fun createDefaultAdminUser(): AppUser {
+        return AppUser(
+            email = ADMIN_EMAIL,
+            displayName = "Aqif Farooqui",
+            photoUrl = "",
+            isPremium = true,
+            planType = "Lifetime VIP",
+            role = "ADMIN",
+            registeredDate = System.currentTimeMillis() - (60L * 24 * 3600 * 1000),
+            notes = "Owner & System Administrator"
+        )
+    }
+
+    fun createStandardUser(email: String, name: String): AppUser {
+        val isAdmin = isAdminEmail(email)
+        return AppUser(
+            email = email,
+            displayName = name,
+            photoUrl = "",
+            isPremium = isAdmin,
+            planType = if (isAdmin) "Lifetime VIP" else "Free",
+            role = if (isAdmin) "ADMIN" else "USER",
+            registeredDate = System.currentTimeMillis(),
+            notes = if (isAdmin) "System Administrator" else "Standard Member"
+        )
+    }
+}

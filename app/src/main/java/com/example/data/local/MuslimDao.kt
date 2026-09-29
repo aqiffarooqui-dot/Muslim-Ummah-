@@ -43,4 +43,23 @@ interface MuslimDao {
 
     @Query("DELETE FROM bookmarks WHERE type = :type AND referenceId = :refId AND secondaryId = :secId")
     suspend fun deleteBookmark(type: String, refId: Int, secId: Int)
+
+    // Users & Subscriptions
+    @Query("SELECT * FROM app_users ORDER BY registeredDate DESC")
+    fun getAllUsers(): Flow<List<AppUser>>
+
+    @Query("SELECT * FROM app_users WHERE email = :email LIMIT 1")
+    suspend fun getUserByEmail(email: String): AppUser?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUser(user: AppUser)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertUsersIfNotExist(users: List<AppUser>)
+
+    @Query("UPDATE app_users SET isPremium = :isPremium, planType = :planType, expiresAt = :expiresAt WHERE email = :email")
+    suspend fun updateSubscription(email: String, isPremium: Boolean, planType: String, expiresAt: Long?)
+
+    @Query("DELETE FROM app_users WHERE email = :email")
+    suspend fun deleteUser(email: String)
 }

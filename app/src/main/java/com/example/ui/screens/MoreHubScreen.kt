@@ -17,9 +17,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldSecondary
+import com.example.ui.viewmodel.MuslimUiState
 
 @Composable
 fun MoreHubScreen(
+    uiState: MuslimUiState,
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -37,7 +39,7 @@ fun MoreHubScreen(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Explore supplications, Divine attributes, calendar, and settings",
+                text = "Explore supplications, Ramadan tracker, and administration",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -46,6 +48,26 @@ fun MoreHubScreen(
         }
 
         item {
+            if (uiState.isAdmin) {
+                MoreNavigationCard(
+                    title = "👑 Super Admin Console",
+                    subtitle = "User database, subscription manager & analytics for aqiffarooqui@gmail.com",
+                    icon = Icons.Default.AdminPanelSettings,
+                    accentColor = GoldSecondary,
+                    onClick = { onNavigate("admin") }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            MoreNavigationCard(
+                title = "Ramadan & Qada Tracker",
+                subtitle = "Suhoor & Iftar times, missed Salah counter, and fasting logs",
+                icon = Icons.Default.Restaurant,
+                accentColor = Color(0xFFD84315),
+                onClick = { onNavigate("fasting_qada") }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
             MoreNavigationCard(
                 title = "Duas & Supplications",
                 subtitle = "Hisn al-Muslim (حصن المسلم) prayers for day & night",
@@ -59,7 +81,7 @@ fun MoreHubScreen(
                 title = "99 Names of Allah",
                 subtitle = "Asma'ul Husna (أسماء الله الحسنى) with meanings and reflections",
                 icon = Icons.Default.Star,
-                accentColor = GoldSecondary,
+                accentColor = Color(0xFFE65100),
                 onClick = { onNavigate("names") }
             )
             Spacer(modifier = Modifier.height(12.dp))
