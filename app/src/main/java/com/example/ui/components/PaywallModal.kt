@@ -113,7 +113,7 @@ fun PaywallModal(
             ) {
                 PricingCard(
                     title = "Monthly",
-                    price = "$3.99/mo",
+                    price = "₹99/mo",
                     period = "Billed monthly",
                     isSelected = selectedPlan == "Monthly Pro",
                     modifier = Modifier.weight(1f),
@@ -121,9 +121,9 @@ fun PaywallModal(
                 )
                 PricingCard(
                     title = "Annual Pro",
-                    badge = "SAVE 37%",
-                    price = "$29.99/yr",
-                    period = "$2.50/month",
+                    badge = "SAVE 58%",
+                    price = "₹499/yr",
+                    period = "₹41/month",
                     isSelected = selectedPlan == "Annual Pro",
                     modifier = Modifier.weight(1f),
                     onClick = { selectedPlan = "Annual Pro" }
@@ -131,7 +131,7 @@ fun PaywallModal(
                 PricingCard(
                     title = "Lifetime",
                     badge = "BEST VALUE",
-                    price = "$59.99",
+                    price = "₹999",
                     period = "Pay once",
                     isSelected = selectedPlan == "Lifetime VIP",
                     modifier = Modifier.weight(1f),

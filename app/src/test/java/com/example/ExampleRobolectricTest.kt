@@ -66,4 +66,36 @@ class ExampleRobolectricTest {
         assertTrue(com.example.ui.util.GoogleAuthManager.isAdminEmail("AqifFarooqui@Gmail.Com"))
         org.junit.Assert.assertFalse(com.example.ui.util.GoogleAuthManager.isAdminEmail("other.user@gmail.com"))
     }
+
+    @Test
+    fun `mumbai prayer calculation succeeds with Karachi method`() {
+        val calendar = Calendar.getInstance()
+        val times = PrayerCalculator.calculateTimes(
+            calendar = calendar,
+            latitude = 19.0760,
+            longitude = 72.8777,
+            timezoneOffsetHours = 5.5,
+            method = CalculationMethod.KARACHI
+        )
+        assertNotNull(times.fajr)
+        assertNotNull(times.dhuhr)
+        assertNotNull(times.asr)
+        assertNotNull(times.maghrib)
+        assertNotNull(times.isha)
+    }
+
+    @Test
+    fun `hadith repository contains Kutub al-Sittah collections and Sahih texts`() {
+        val books = com.example.data.model.HadithRepository.MAIN_BOOKS
+        assertTrue(books.any { it.id == "bukhari" })
+        assertTrue(books.any { it.id == "muslim" })
+        assertTrue(books.any { it.id == "tirmidhi" })
+        assertTrue(books.any { it.id == "abudawud" })
+        assertTrue(books.any { it.id == "nasai" })
+        assertTrue(books.any { it.id == "ibnmajah" })
+
+        val hadiths = com.example.data.model.HadithRepository.ALL_HADITHS
+        assertTrue(hadiths.isNotEmpty())
+        assertTrue(hadiths.all { it.arabicText.isNotBlank() && it.englishTranslation.isNotBlank() && it.urduTranslation.isNotBlank() })
+    }
 }

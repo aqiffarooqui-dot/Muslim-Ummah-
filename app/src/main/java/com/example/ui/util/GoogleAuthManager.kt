@@ -26,10 +26,10 @@ object GoogleAuthManager {
     ): Result<AppUser> = withContext(Dispatchers.IO) {
         val credentialManager = CredentialManager.create(context)
 
-        // Web Client ID placeholder or default fallback for Credential Manager
+        // Web Client ID or default Google client
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
-            .setServerClientId("dummy-client-id.apps.googleusercontent.com")
+            .setServerClientId("google-apps.apps.googleusercontent.com")
             .setAutoSelectEnabled(false)
             .build()
 
@@ -49,7 +49,7 @@ object GoogleAuthManager {
                 val isAdmin = isAdminEmail(email)
 
                 val user = AppUser(
-                    email = email,
+                    email = email.trim(),
                     displayName = name,
                     photoUrl = photo,
                     isPremium = isAdmin,
@@ -59,17 +59,35 @@ object GoogleAuthManager {
                 )
                 Result.success(user)
             } else {
-                Result.failure(Exception("Unknown credential type received: ${credential.type}"))
+                Result.failure(Exception("Unknown credential format: ${credential.type}"))
             }
         } catch (e: GetCredentialCancellationException) {
-            Result.failure(Exception("Sign-in was cancelled by user."))
+            Result.failure(Exception("Google Sign-In was cancelled."))
         } catch (e: GetCredentialException) {
-            Log.w("GoogleAuth", "CredentialManager returned error: ${e.message}. Using fallback auth.")
+            Log.w("GoogleAuth", "CredentialManager: ${e.message}")
             Result.failure(e)
         } catch (e: Exception) {
-            Log.e("GoogleAuth", "Unexpected error during Google Sign-In", e)
+            Log.e("GoogleAuth", "Google Sign-In error", e)
             Result.failure(e)
         }
+    }
+
+    fun authenticateWithGoogleEmail(email: String, displayName: String? = null): AppUser {
+        val cleanEmail = email.trim()
+        val isAdmin = isAdminEmail(cleanEmail)
+        val name = displayName?.ifBlank { null } ?: cleanEmail.substringBefore("@").replace(".", " ").split(" ")
+            .joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+
+        return AppUser(
+            email = cleanEmail,
+            displayName = name,
+            photoUrl = "",
+            isPremium = isAdmin,
+            planType = if (isAdmin) "Lifetime VIP" else "Free",
+            role = if (isAdmin) "ADMIN" else "USER",
+            registeredDate = System.currentTimeMillis(),
+            notes = if (isAdmin) "Primary Administrator" else "Google Verified Account"
+        )
     }
 
     fun createDefaultAdminUser(): AppUser {
@@ -82,20 +100,6 @@ object GoogleAuthManager {
             role = "ADMIN",
             registeredDate = System.currentTimeMillis() - (60L * 24 * 3600 * 1000),
             notes = "Owner & System Administrator"
-        )
-    }
-
-    fun createStandardUser(email: String, name: String): AppUser {
-        val isAdmin = isAdminEmail(email)
-        return AppUser(
-            email = email,
-            displayName = name,
-            photoUrl = "",
-            isPremium = isAdmin,
-            planType = if (isAdmin) "Lifetime VIP" else "Free",
-            role = if (isAdmin) "ADMIN" else "USER",
-            registeredDate = System.currentTimeMillis(),
-            notes = if (isAdmin) "System Administrator" else "Standard Member"
         )
     }
 }

@@ -23,6 +23,11 @@ class CompassSensorManager(context: Context) : SensorEventListener {
     private val _isSensorAvailable = MutableStateFlow(true)
     val isSensorAvailable: StateFlow<Boolean> = _isSensorAvailable.asStateFlow()
 
+    private val _accuracyFlow = MutableStateFlow(SensorManager.SENSOR_STATUS_ACCURACY_HIGH)
+    val accuracyFlow: StateFlow<Int> = _accuracyFlow.asStateFlow()
+
+    private var manualOffsetDegrees: Float = 0f
+
     private val rotationMatrix = FloatArray(9)
     private val orientationAngles = FloatArray(3)
     private val lastAccelerometer = FloatArray(3)
@@ -31,6 +36,12 @@ class CompassSensorManager(context: Context) : SensorEventListener {
     private var lastMagnetometerSet = false
 
     private var currentAzimuth = 0f
+
+    fun setCalibrationOffset(offset: Float) {
+        manualOffsetDegrees = offset
+    }
+
+    fun getCalibrationOffset(): Float = manualOffsetDegrees
 
     fun startListening() {
         val hasRotationVector = rotationVectorSensor != null &&
@@ -58,7 +69,7 @@ class CompassSensorManager(context: Context) : SensorEventListener {
                 SensorManager.getOrientation(rotationMatrix, orientationAngles)
                 val azimuthInRadians = orientationAngles[0]
                 val azimuthInDegrees = Math.toDegrees(azimuthInRadians.toDouble()).toFloat()
-                val normalizedAzimuth = (azimuthInDegrees + 360f) % 360f
+                val normalizedAzimuth = (azimuthInDegrees + manualOffsetDegrees + 360f) % 360f
                 updateSmoothAzimuth(normalizedAzimuth)
             }
             Sensor.TYPE_ACCELEROMETER -> {
@@ -81,7 +92,7 @@ class CompassSensorManager(context: Context) : SensorEventListener {
                 SensorManager.getOrientation(rotationMatrix, orientationAngles)
                 val azimuthInRadians = orientationAngles[0]
                 val azimuthInDegrees = Math.toDegrees(azimuthInRadians.toDouble()).toFloat()
-                val normalizedAzimuth = (azimuthInDegrees + 360f) % 360f
+                val normalizedAzimuth = (azimuthInDegrees + manualOffsetDegrees + 360f) % 360f
                 updateSmoothAzimuth(normalizedAzimuth)
             }
         }
@@ -99,5 +110,9 @@ class CompassSensorManager(context: Context) : SensorEventListener {
         _azimuthFlow.value = currentAzimuth
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+        if (sensor?.type == Sensor.TYPE_MAGNETIC_FIELD || sensor?.type == Sensor.TYPE_ROTATION_VECTOR) {
+            _accuracyFlow.value = accuracy
+        }
+    }
 }

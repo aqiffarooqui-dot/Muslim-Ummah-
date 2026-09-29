@@ -1,7 +1,10 @@
 package com.example.ui
 
+import android.Manifest
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -27,6 +30,7 @@ sealed class Screen(val route: String, val label: String, val selectedIcon: Imag
     object Tasbih : Screen("tasbih", "Tasbih", Icons.Filled.RadioButtonChecked, Icons.Outlined.RadioButtonUnchecked)
     object More : Screen("more", "More", Icons.Filled.Widgets, Icons.Outlined.Widgets)
     // Sub-screens
+    object Hadith : Screen("hadith", "Hadith", Icons.Filled.MenuBook, Icons.Outlined.MenuBook)
     object Duas : Screen("duas", "Duas", Icons.Filled.VolunteerActivism, Icons.Outlined.VolunteerActivism)
     object NamesOfAllah : Screen("names", "99 Names", Icons.Filled.Star, Icons.Outlined.StarOutline)
     object Calendar : Screen("calendar", "Calendar", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth)
@@ -49,10 +53,32 @@ fun MainAppScreen(
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
     var showAuthDialog by remember { mutableStateOf(false) }
 
+    // Runtime location permission launcher for device GPS
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        if (fineGranted || coarseGranted) {
+            viewModel.fetchDeviceLocation(context)
+        } else {
+            viewModel.showStatus("Location permission required for GPS prayer calculation.")
+        }
+    }
+
+    val requestLocationAction = {
+        locationPermissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+    }
+
     // System Back Handler
     BackHandler(enabled = currentScreen != Screen.Home) {
         currentScreen = when (currentScreen) {
-            Screen.Duas, Screen.NamesOfAllah, Screen.Calendar, Screen.Settings, Screen.Admin, Screen.FastingQada -> Screen.More
+            Screen.Hadith, Screen.Duas, Screen.NamesOfAllah, Screen.Calendar, Screen.Settings, Screen.Admin, Screen.FastingQada -> Screen.More
             else -> Screen.Home
         }
     }
@@ -71,6 +97,7 @@ fun MainAppScreen(
                     val isSelected = when (screen) {
                         Screen.More -> currentScreen in listOf(
                             Screen.More,
+                            Screen.Hadith,
                             Screen.Duas,
                             Screen.NamesOfAllah,
                             Screen.Calendar,
@@ -110,6 +137,7 @@ fun MainAppScreen(
                             "qibla" -> Screen.Qibla
                             "quran" -> Screen.Quran
                             "tasbih" -> Screen.Tasbih
+                            "hadith" -> Screen.Hadith
                             "duas" -> Screen.Duas
                             "names" -> Screen.NamesOfAllah
                             "calendar" -> Screen.Calendar
@@ -121,6 +149,7 @@ fun MainAppScreen(
                     },
                     onTogglePrayer = { viewModel.togglePrayer(it) },
                     onSelectCity = { viewModel.setCity(it) },
+                    onRequestLocation = requestLocationAction,
                     onOpenPaywall = { viewModel.showPaywall("Muslim Pro Premium") },
                     onOpenAuth = { showAuthDialog = true }
                 )
@@ -138,7 +167,12 @@ fun MainAppScreen(
                         viewModel.isItemBookmarked(type, ref, sec)
                     }
                 )
-                Screen.Qibla -> QiblaScreen(uiState = uiState)
+                Screen.Qibla -> QiblaScreen(
+                    uiState = uiState,
+                    onRequestLocation = requestLocationAction,
+                    onSetOffset = { viewModel.setCompassOffset(it) },
+                    onResetOffset = { viewModel.resetCompassCalibration() }
+                )
                 Screen.Tasbih -> TasbihScreen(
                     uiState = uiState,
                     tasbihHistory = tasbihHistory,
@@ -152,6 +186,7 @@ fun MainAppScreen(
                     uiState = uiState,
                     onNavigate = { route ->
                         currentScreen = when (route) {
+                            "hadith" -> Screen.Hadith
                             "duas" -> Screen.Duas
                             "names" -> Screen.NamesOfAllah
                             "calendar" -> Screen.Calendar
@@ -161,6 +196,16 @@ fun MainAppScreen(
                             else -> Screen.Home
                         }
                     }
+                )
+                Screen.Hadith -> HadithScreen(
+                    uiState = uiState,
+                    onToggleBookmark = { type, ref, sec, title, sub ->
+                        viewModel.toggleBookmark(type, ref, sec, title, sub)
+                    },
+                    isBookmarked = { type, ref, sec ->
+                        viewModel.isItemBookmarked(type, ref, sec)
+                    },
+                    onShowStatus = { viewModel.showStatus(it) }
                 )
                 Screen.Duas -> DuasScreen(
                     uiState = uiState,
@@ -226,14 +271,13 @@ fun MainAppScreen(
     if (showAuthDialog) {
         AuthDialog(
             uiState = uiState,
-            allUsers = allUsers,
             onDismiss = { showAuthDialog = false },
             onSignInWithGoogle = { activity ->
                 viewModel.signInWithGoogle(activity)
                 showAuthDialog = false
             },
-            onSwitchAccount = { email ->
-                viewModel.switchAccount(email)
+            onSignInWithEmail = { email, name ->
+                viewModel.signInWithGoogleEmail(email, name)
                 showAuthDialog = false
             },
             onSignOut = {

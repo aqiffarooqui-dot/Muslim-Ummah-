@@ -53,9 +53,9 @@ fun AdminScreen(
     val freeUsersCount = totalUsers - premiumUsersCount
     val estimatedMRR = allUsers.sumOf {
         when (it.planType) {
-            "Monthly Pro" -> 3.99
-            "Annual Pro" -> 2.50
-            "Lifetime VIP" -> 5.00
+            "Monthly Pro" -> 99.0
+            "Annual Pro" -> 41.5
+            "Lifetime VIP" -> 83.0
             else -> 0.0
         }
     }
@@ -190,7 +190,7 @@ fun AdminScreen(
                 )
                 MetricCard(
                     title = "Est. MRR",
-                    value = "$${String.format(Locale.US, "%.2f", estimatedMRR)}",
+                    value = "₹${String.format(Locale.US, "%.0f", estimatedMRR)}",
                     icon = Icons.Default.MonetizationOn,
                     color = Color(0xFF2E7D32),
                     modifier = Modifier.weight(1f)

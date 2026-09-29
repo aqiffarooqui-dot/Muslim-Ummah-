@@ -78,6 +78,15 @@ fun MoreHubScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             MoreNavigationCard(
+                title = "Hadith Books (كتب الحديث)",
+                subtitle = "Sahih al-Bukhari, Sahih Muslim, Tirmidhi, Abu Dawud, Nasa'i & Nawawi",
+                icon = Icons.Default.MenuBook,
+                accentColor = Color(0xFF00796B),
+                onClick = { onNavigate("hadith") }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            MoreNavigationCard(
                 title = "99 Names of Allah",
                 subtitle = "Asma'ul Husna (أسماء الله الحسنى) with meanings and reflections",
                 icon = Icons.Default.Star,

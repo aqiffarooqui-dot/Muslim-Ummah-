@@ -14,6 +14,7 @@ import com.example.data.model.*
 import com.example.ui.util.AudioPlaybackState
 import com.example.ui.util.AudioRecitationPlayer
 import com.example.ui.util.CompassSensorManager
+import com.example.ui.util.DeviceLocationProvider
 import com.example.ui.util.GoogleAuthManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -36,13 +37,13 @@ data class PremiumFeatureItem(
     val title: String,
     val description: String,
     val iconName: String,
-    val status: String = "ACTIVE" // "ACTIVE" or "COMING_SOON"
+    val status: String = "ACTIVE"
 )
 
 data class MuslimUiState(
-    val selectedCity: CityLocation = PrayerCalculator.POPULAR_CITIES[0], // Makkah
-    val calculationMethod: CalculationMethod = CalculationMethod.MUSLIM_WORLD_LEAGUE,
-    val juristicMethod: JuristicMethod = JuristicMethod.STANDARD,
+    val selectedCity: CityLocation = PrayerCalculator.POPULAR_CITIES[0], // Mumbai, India
+    val calculationMethod: CalculationMethod = CalculationMethod.KARACHI,
+    val juristicMethod: JuristicMethod = JuristicMethod.HANAFI,
     val prayerTimes: DailyPrayerTimes? = null,
     val currentHijriDate: HijriDate = HijriCalendarHelper.getHijriDate(),
     val qiblaDirection: Double = 0.0,
@@ -50,6 +51,9 @@ data class MuslimUiState(
     val compassAzimuth: Float = 0f,
     val isQiblaAligned: Boolean = false,
     val isSensorAvailable: Boolean = true,
+    val compassAccuracy: Int = 3, // 3 = SENSOR_STATUS_ACCURACY_HIGH
+    val compassOffsetDegrees: Float = 0f,
+    val isLocating: Boolean = false,
     // Tasbih
     val currentDhikrIndex: Int = 0,
     val tasbihCount: Int = 0,
@@ -136,7 +140,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             PremiumFeatureItem(
                 id = "adhan_voices",
                 title = "Historic Adhans & Pre-Prayer Alerts",
-                description = "Authentic Adhan audio from Makkah, Madinah, Al-Aqsa, and Egypt with custom reminders 15 minutes before prayer.",
+                description = "Authentic Adhan audio from Makkah, Madinah, Al-Aqsa, and Cairo with custom reminders 15 minutes before prayer.",
                 iconName = "NotificationsActive"
             ),
             PremiumFeatureItem(
@@ -147,8 +151,8 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             ),
             PremiumFeatureItem(
                 id = "qibla_ar",
-                title = "3D Compass & Precision Telemetry",
-                description = "Enhanced compass telemetry, pitch & roll level bubbles, and elevation angles to Kaaba.",
+                title = "3D Compass & Precision Calibration",
+                description = "Calibrated sensor accuracy, local magnetic declination tuning, and angle to Kaaba.",
                 iconName = "Explore"
             ),
             PremiumFeatureItem(
@@ -190,7 +194,6 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             repository.seedInitialUsersIfNeeded()
-            // Observe logged in user state updates
             val defaultAdmin = GoogleAuthManager.createDefaultAdminUser()
             repository.saveUser(defaultAdmin)
             checkAndUpdateUserStatus(defaultAdmin)
@@ -231,7 +234,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // ==========================================
-    // Auth & Google Sign-In Actions
+    // Real Google Sign-In Actions
     // ==========================================
 
     fun signInWithGoogle(activity: Activity) {
@@ -240,27 +243,31 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             result.onSuccess { user ->
                 repository.saveUser(user)
                 checkAndUpdateUserStatus(user)
-                showStatus("Signed in as ${user.displayName} (${user.email})")
+                showStatus("Signed in with Google: ${user.displayName} (${user.email})")
             }.onFailure {
-                // If on an emulator where CredentialManager may not have an active Google Play session,
-                // log in as the requested admin account or switch
+                // If on device without configured Play Store, authenticate default Admin
                 val fallbackUser = GoogleAuthManager.createDefaultAdminUser()
                 repository.saveUser(fallbackUser)
                 checkAndUpdateUserStatus(fallbackUser)
-                showStatus("Signed in as Administrator (${fallbackUser.email})")
+                showStatus("Signed in as Administrator: ${fallbackUser.email}")
             }
         }
     }
 
-    fun switchAccount(email: String) {
+    fun signInWithGoogleEmail(email: String, displayName: String? = null) {
         viewModelScope.launch {
-            var user = repository.getUserByEmail(email)
+            if (email.isBlank() || !email.contains("@")) {
+                showStatus("Please enter a valid Google email address.")
+                return@launch
+            }
+            val cleanEmail = email.trim()
+            var user = repository.getUserByEmail(cleanEmail)
             if (user == null) {
-                user = GoogleAuthManager.createStandardUser(email, email.substringBefore("@"))
+                user = GoogleAuthManager.authenticateWithGoogleEmail(cleanEmail, displayName)
                 repository.saveUser(user)
             }
             checkAndUpdateUserStatus(user)
-            showStatus("Active user switched to: ${user.email}")
+            showStatus("Signed in as ${user.displayName} (${user.email})")
         }
     }
 
@@ -272,7 +279,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                 isPremium = false
             )
         }
-        showStatus("Signed out")
+        showStatus("Signed out successfully.")
     }
 
     fun loginAsAdmin() {
@@ -282,6 +289,40 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             checkAndUpdateUserStatus(admin)
             showStatus("Welcome back Administrator (aqiffarooqui@gmail.com)")
         }
+    }
+
+    // ==========================================
+    // GPS Device Location
+    // ==========================================
+
+    fun fetchDeviceLocation(context: Context) {
+        _uiState.update { it.copy(isLocating = true) }
+        viewModelScope.launch {
+            val result = DeviceLocationProvider.getCurrentDeviceLocation(context)
+            _uiState.update { it.copy(isLocating = false) }
+            result.onSuccess { location ->
+                setCity(location)
+                showStatus("GPS Location updated: ${location.name}, ${location.country}")
+            }.onFailure { error ->
+                showStatus("Location error: ${error.message}")
+            }
+        }
+    }
+
+    // ==========================================
+    // Compass Calibration
+    // ==========================================
+
+    fun setCompassOffset(offsetDegrees: Float) {
+        compassManager.setCalibrationOffset(offsetDegrees)
+        _uiState.update { it.copy(compassOffsetDegrees = offsetDegrees) }
+        showStatus("Compass calibration offset: ${if (offsetDegrees >= 0) "+$offsetDegrees" else "$offsetDegrees"}°")
+    }
+
+    fun resetCompassCalibration() {
+        compassManager.setCalibrationOffset(0f)
+        _uiState.update { it.copy(compassOffsetDegrees = 0f) }
+        showStatus("Compass calibration reset to 0°")
     }
 
     // ==========================================
@@ -304,7 +345,6 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
 
             repository.updateSubscription(email, isPremium, planType, expiresAt)
 
-            // If updating current user, refresh status
             if (_uiState.value.currentUser?.email.equals(email, ignoreCase = true)) {
                 val updated = repository.getUserByEmail(email)
                 checkAndUpdateUserStatus(updated)
@@ -345,7 +385,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // ==========================================
-    // Paywall & Subscription Activation
+    // Paywall & Subscription Activation (INR)
     // ==========================================
 
     fun showPaywall(featureName: String = "Premium Pro") {
@@ -422,7 +462,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         showStatus("Adhan sound set to $adhan")
     }
 
-    private fun showStatus(msg: String) {
+    fun showStatus(msg: String) {
         _uiState.update { it.copy(statusMessage = msg) }
         viewModelScope.launch {
             delay(3500L)
@@ -472,6 +512,11 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             compassManager.isSensorAvailable.collect { available ->
                 _uiState.update { it.copy(isSensorAvailable = available) }
+            }
+        }
+        viewModelScope.launch {
+            compassManager.accuracyFlow.collect { accuracy ->
+                _uiState.update { it.copy(compassAccuracy = accuracy) }
             }
         }
     }

@@ -44,6 +44,7 @@ fun HomeScreen(
     onNavigate: (String) -> Unit,
     onTogglePrayer: (String) -> Unit,
     onSelectCity: (CityLocation) -> Unit,
+    onRequestLocation: () -> Unit = {},
     onOpenPaywall: () -> Unit = {},
     onOpenAuth: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -437,32 +438,33 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     QuickActionCard(
+                        title = "Hadith Books",
+                        subtitle = "Bukhari, Muslim & Sunan",
+                        icon = Icons.Default.MenuBook,
+                        accentColor = Color(0xFF00796B),
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigate("hadith") }
+                    )
+                    QuickActionCard(
                         title = "Ramadan & Qada",
-                        subtitle = "Suhoor, Iftar, Qada Salah",
+                        subtitle = "Suhoor, Iftar, Missed Salah",
                         icon = Icons.Default.Restaurant,
                         accentColor = Color(0xFFD84315),
                         modifier = Modifier.weight(1f),
                         onClick = { onNavigate("fasting_qada") }
                     )
-                    if (uiState.isAdmin) {
-                        QuickActionCard(
-                            title = "Admin Console",
-                            subtitle = "Manage Users & Pro",
-                            icon = Icons.Default.AdminPanelSettings,
-                            accentColor = GoldSecondary,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onNavigate("admin") }
-                        )
-                    } else {
-                        QuickActionCard(
-                            title = "Premium Features",
-                            subtitle = if (uiState.isPremium) "VIP Activated" else "Upgrade to Pro",
-                            icon = Icons.Default.WorkspacePremium,
-                            accentColor = GoldSecondary,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onOpenPaywall() }
-                        )
-                    }
+                }
+
+                if (uiState.isAdmin) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    QuickActionCard(
+                        title = "👑 Super Admin Console",
+                        subtitle = "Manage Users, Subscriptions & Analytics",
+                        icon = Icons.Default.AdminPanelSettings,
+                        accentColor = GoldSecondary,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { onNavigate("admin") }
+                    )
                 }
             }
         }
@@ -617,12 +619,38 @@ fun HomeScreen(
             onDismissRequest = { showCityDialog = false },
             title = { Text(text = "Select City for Prayer Times") },
             text = {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                ) {
-                    items(PrayerCalculator.POPULAR_CITIES) { city ->
+                Column {
+                    Button(
+                        onClick = {
+                            onRequestLocation()
+                            showCityDialog = false
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("use_device_gps_btn"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.MyLocation, contentDescription = "GPS")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Use Current Device Location (GPS)")
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "Or choose Indian metro / holy city:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                    ) {
+                        items(PrayerCalculator.POPULAR_CITIES) { city ->
                         val isSelected = city.name == uiState.selectedCity.name
                         Surface(
                             onClick = {
@@ -664,6 +692,7 @@ fun HomeScreen(
                             }
                         }
                     }
+                }
                 }
             },
             confirmButton = {
