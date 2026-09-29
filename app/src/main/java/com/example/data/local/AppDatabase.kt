@@ -17,7 +17,7 @@ import androidx.room.RoomDatabase
         HadithNote::class,
         KhatamProgress::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

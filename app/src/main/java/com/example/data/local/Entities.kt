@@ -45,7 +45,8 @@ data class AppUser(
     val role: String = "USER", // "ADMIN" or "USER"
     val registeredDate: Long = System.currentTimeMillis(),
     val expiresAt: Long? = null,
-    val notes: String = ""
+    val notes: String = "",
+    val uid: String = ""
 )
 
 @Entity(tableName = "quran_reading_position")

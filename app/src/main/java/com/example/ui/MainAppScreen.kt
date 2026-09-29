@@ -81,6 +81,22 @@ fun MainAppScreen(
         )
     }
 
+    // Root Navigation Protection: Mandatory Google Authentication via Firebase
+    if (uiState.currentUser == null) {
+        LoginScreen(
+            isLoading = uiState.isAuthLoading,
+            errorMessage = uiState.authErrorMessage,
+            onGoogleSignInClick = { activity ->
+                viewModel.signInWithGoogle(activity)
+            },
+            onDismissError = {
+                viewModel.dismissAuthError()
+            },
+            modifier = modifier
+        )
+        return
+    }
+
     // System Back Handler
     BackHandler(enabled = currentScreen != Screen.Home) {
         currentScreen = when (currentScreen) {
@@ -305,7 +321,8 @@ fun MainAppScreen(
                     onOpenPaywall = { viewModel.showPaywall("Muslim Ummah Premium") },
                     onRestorePurchases = { viewModel.restorePurchases() },
                     onSelectReciter = { viewModel.setReciter(it) },
-                    onSelectAdhan = { viewModel.setAdhanSound(it) }
+                    onSelectAdhan = { viewModel.setAdhanSound(it) },
+                    onSignOut = { viewModel.signOutUser(context) }
                 )
             }
         }
@@ -338,7 +355,7 @@ fun MainAppScreen(
                 showAuthDialog = false
             },
             onSignOut = {
-                viewModel.signOut()
+                viewModel.signOutUser(context)
                 showAuthDialog = false
             },
             onLoginAsAdmin = {

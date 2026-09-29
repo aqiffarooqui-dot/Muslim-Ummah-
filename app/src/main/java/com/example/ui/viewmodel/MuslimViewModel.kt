@@ -14,6 +14,7 @@ import com.example.data.model.*
 import com.example.data.subscription.EntitlementState
 import com.example.data.subscription.PremiumEntitlement
 import com.example.data.subscription.SubscriptionManager
+import com.example.data.sync.FirebaseSyncManager
 import com.example.ui.theme.AppThemeType
 import com.example.ui.theme.ThemeManager
 import com.example.ui.util.AudioPlaybackState
@@ -91,10 +92,13 @@ data class MuslimUiState(
         dateKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
     ),
     // Auth & Subscription
-    val currentUser: AppUser? = GoogleAuthManager.createDefaultAdminUser(),
-    val entitlement: PremiumEntitlement = PremiumEntitlement(state = EntitlementState.PREMIUM, isAdFree = true),
-    val isAdmin: Boolean = true,
-    val isPremium: Boolean = true,
+    val currentUser: AppUser? = GoogleAuthManager.getCurrentAppUser(),
+    val isAuthLoading: Boolean = false,
+    val authErrorMessage: String? = null,
+    val isAuthInitialized: Boolean = false,
+    val entitlement: PremiumEntitlement = PremiumEntitlement(state = EntitlementState.FREE, isAdFree = false),
+    val isAdmin: Boolean = false,
+    val isPremium: Boolean = false,
     val showPaywallModal: Boolean = false,
     val paywallTriggerFeature: String = "",
     val selectedAdhanSound: String = "Makkah Al-Mukarramah Adhan",
@@ -221,9 +225,15 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             repository.seedInitialUsersIfNeeded()
-            val defaultAdmin = GoogleAuthManager.createDefaultAdminUser()
-            repository.saveUser(defaultAdmin)
-            checkAndUpdateUserStatus(defaultAdmin)
+            val currentFbUser = GoogleAuthManager.getCurrentAppUser()
+            if (currentFbUser != null) {
+                repository.saveUser(currentFbUser)
+                checkAndUpdateUserStatus(currentFbUser)
+                FirebaseSyncManager.pullAndSyncAllData(currentFbUser.uid, repository)
+            } else {
+                checkAndUpdateUserStatus(null)
+            }
+            _uiState.update { it.copy(isAuthInitialized = true) }
         }
 
         viewModelScope.launch {
@@ -297,18 +307,43 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
     // ==========================================
 
     fun signInWithGoogle(activity: Activity) {
+        _uiState.update { it.copy(isAuthLoading = true, authErrorMessage = null) }
         viewModelScope.launch {
             val result = GoogleAuthManager.signInWithGoogleCredentialManager(getApplication(), activity)
             result.onSuccess { user ->
                 repository.saveUser(user)
                 checkAndUpdateUserStatus(user)
-                showStatus("Signed in with Google: ${user.displayName} (${user.email})")
-            }.onFailure {
-                val fallbackUser = GoogleAuthManager.createDefaultAdminUser()
-                repository.saveUser(fallbackUser)
-                checkAndUpdateUserStatus(fallbackUser)
-                showStatus("Signed in as Administrator: ${fallbackUser.email}")
+                FirebaseSyncManager.syncUserProfile(user)
+                FirebaseSyncManager.pullAndSyncAllData(user.uid, repository)
+                _uiState.update { it.copy(isAuthLoading = false, authErrorMessage = null) }
+                showStatus("Signed in with Google: ${user.displayName}")
+            }.onFailure { err ->
+                _uiState.update {
+                    it.copy(
+                        isAuthLoading = false,
+                        authErrorMessage = err.message ?: "Authentication failed. Please try again."
+                    )
+                }
             }
+        }
+    }
+
+    fun dismissAuthError() {
+        _uiState.update { it.copy(authErrorMessage = null) }
+    }
+
+    fun signOutUser(context: Context) {
+        viewModelScope.launch {
+            GoogleAuthManager.signOut(context)
+            _uiState.update {
+                it.copy(
+                    currentUser = null,
+                    isAdmin = false,
+                    isPremium = false
+                )
+            }
+            SubscriptionManager.updateEntitlementForUser("", false, "Free", null)
+            showStatus("Signed out successfully.")
         }
     }
 
@@ -319,26 +354,27 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                 return@launch
             }
             val cleanEmail = email.trim()
-            var user = repository.getUserByEmail(cleanEmail)
-            if (user == null) {
-                user = GoogleAuthManager.authenticateWithGoogleEmail(cleanEmail, displayName)
-                repository.saveUser(user)
-            }
-            checkAndUpdateUserStatus(user)
-            showStatus("Signed in as ${user.displayName} (${user.email})")
-        }
-    }
-
-    fun signOut() {
-        _uiState.update {
-            it.copy(
-                currentUser = null,
-                isAdmin = false,
-                isPremium = false
+            val isAdmin = GoogleAuthManager.isAdminEmail(cleanEmail)
+            val name = displayName?.ifBlank { null } ?: cleanEmail.substringBefore("@").replace(".", " ")
+                .split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+            val uid = "google_" + cleanEmail.replace("@", "_").replace(".", "_")
+            val user = AppUser(
+                uid = uid,
+                email = cleanEmail,
+                displayName = name,
+                photoUrl = "",
+                isPremium = isAdmin,
+                planType = if (isAdmin) "Lifetime VIP" else "Free",
+                role = if (isAdmin) "ADMIN" else "USER",
+                registeredDate = System.currentTimeMillis(),
+                notes = if (isAdmin) "Primary Administrator" else "Google Account"
             )
+            repository.saveUser(user)
+            checkAndUpdateUserStatus(user)
+            FirebaseSyncManager.syncUserProfile(user)
+            FirebaseSyncManager.pullAndSyncAllData(user.uid, repository)
+            showStatus("Signed in as ${user.displayName}")
         }
-        SubscriptionManager.updateEntitlementForUser("", false, "Free", null)
-        showStatus("Signed out successfully.")
     }
 
     fun loginAsAdmin() {
@@ -407,6 +443,10 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                 paraNumber = 1
             )
             repository.saveQuranReadingPosition(pos)
+            val uid = _uiState.value.currentUser?.uid ?: ""
+            if (uid.isNotBlank()) {
+                FirebaseSyncManager.saveQuranPosition(uid, pos)
+            }
         }
     }
 
@@ -419,6 +459,10 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                 noteText = text
             )
             repository.addQuranNote(note)
+            val uid = _uiState.value.currentUser?.uid ?: ""
+            if (uid.isNotBlank()) {
+                FirebaseSyncManager.saveQuranNote(uid, note)
+            }
             showStatus("Note saved for Surah $surahName Ayah $ayahNumber")
         }
     }
@@ -432,6 +476,10 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                 hadithNumber = hadithNumber
             )
             repository.saveHadithReadingPosition(pos)
+            val uid = _uiState.value.currentUser?.uid ?: ""
+            if (uid.isNotBlank()) {
+                FirebaseSyncManager.saveHadithPosition(uid, pos)
+            }
         }
     }
 
@@ -443,6 +491,10 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                 noteText = text
             )
             repository.addHadithNote(note)
+            val uid = _uiState.value.currentUser?.uid ?: ""
+            if (uid.isNotBlank()) {
+                FirebaseSyncManager.saveHadithNote(uid, note)
+            }
             showStatus("Note saved for Hadith #$hadithId")
         }
     }
@@ -839,6 +891,17 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             val isBookmarked = bookmarks.value.any { it.type == type && it.referenceId == refId && it.secondaryId == secId }
             repository.toggleBookmark(type, refId, secId, title, subtitle, isBookmarked)
+            val uid = _uiState.value.currentUser?.uid ?: ""
+            if (uid.isNotBlank()) {
+                if (isBookmarked) {
+                    FirebaseSyncManager.deleteBookmark(uid, type, refId, secId)
+                } else {
+                    FirebaseSyncManager.saveBookmark(
+                        uid,
+                        Bookmark(type = type, referenceId = refId, secondaryId = secId, title = title, subtitle = subtitle)
+                    )
+                }
+            }
         }
     }
 

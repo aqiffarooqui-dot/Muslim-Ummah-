@@ -32,6 +32,9 @@ interface MuslimDao {
     @Query("SELECT * FROM bookmarks ORDER BY timestamp DESC")
     fun getAllBookmarks(): Flow<List<Bookmark>>
 
+    @Query("SELECT * FROM bookmarks ORDER BY timestamp DESC")
+    suspend fun getAllBookmarksList(): List<Bookmark>
+
     @Query("SELECT * FROM bookmarks WHERE type = :type ORDER BY timestamp DESC")
     fun getBookmarksByType(type: String): Flow<List<Bookmark>>
 
@@ -67,12 +70,18 @@ interface MuslimDao {
     @Query("SELECT * FROM quran_reading_position WHERE id = 1 LIMIT 1")
     fun getQuranReadingPosition(): Flow<QuranReadingPosition?>
 
+    @Query("SELECT * FROM quran_reading_position WHERE id = 1 LIMIT 1")
+    suspend fun getQuranReadingPositionDirect(): QuranReadingPosition?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveQuranReadingPosition(position: QuranReadingPosition)
 
     // Quran Notes
     @Query("SELECT * FROM quran_notes ORDER BY timestamp DESC")
     fun getAllQuranNotes(): Flow<List<QuranNote>>
+
+    @Query("SELECT * FROM quran_notes ORDER BY timestamp DESC")
+    suspend fun getAllQuranNotesList(): List<QuranNote>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertQuranNote(note: QuranNote): Long
@@ -84,12 +93,18 @@ interface MuslimDao {
     @Query("SELECT * FROM hadith_reading_position WHERE id = 1 LIMIT 1")
     fun getHadithReadingPosition(): Flow<HadithReadingPosition?>
 
+    @Query("SELECT * FROM hadith_reading_position WHERE id = 1 LIMIT 1")
+    suspend fun getHadithReadingPositionDirect(): HadithReadingPosition?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveHadithReadingPosition(position: HadithReadingPosition)
 
     // Hadith Notes
     @Query("SELECT * FROM hadith_notes ORDER BY timestamp DESC")
     fun getAllHadithNotes(): Flow<List<HadithNote>>
+
+    @Query("SELECT * FROM hadith_notes ORDER BY timestamp DESC")
+    suspend fun getAllHadithNotesList(): List<HadithNote>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHadithNote(note: HadithNote): Long

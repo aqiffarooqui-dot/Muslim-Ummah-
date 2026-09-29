@@ -39,6 +39,10 @@ class MuslimRepository(private val dao: MuslimDao) {
         }
     }
 
+    suspend fun insertBookmark(bookmark: Bookmark): Long {
+        return dao.insertBookmark(bookmark)
+    }
+
     // Users and Subscriptions
     val allUsers: Flow<List<AppUser>> = dao.getAllUsers()
 
@@ -96,6 +100,12 @@ class MuslimRepository(private val dao: MuslimDao) {
     suspend fun saveKhatamProgress(progress: KhatamProgress) {
         dao.saveKhatamProgress(progress)
     }
+
+    suspend fun getAllBookmarksList(): List<Bookmark> = dao.getAllBookmarksList()
+    suspend fun getQuranReadingPositionDirect(): QuranReadingPosition? = dao.getQuranReadingPositionDirect()
+    suspend fun getAllQuranNotesList(): List<QuranNote> = dao.getAllQuranNotesList()
+    suspend fun getHadithReadingPositionDirect(): HadithReadingPosition? = dao.getHadithReadingPositionDirect()
+    suspend fun getAllHadithNotesList(): List<HadithNote> = dao.getAllHadithNotesList()
 
     suspend fun seedInitialUsersIfNeeded() {
         val adminUser = AppUser(
