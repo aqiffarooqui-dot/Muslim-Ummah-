@@ -328,6 +328,86 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun signInWithEmail(email: String, password: String) {
+        val cleanEmail = email.trim()
+        if (cleanEmail.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+            _uiState.update { it.copy(authErrorMessage = "Please enter a valid email address.") }
+            return
+        }
+        if (password.length < 6) {
+            _uiState.update { it.copy(authErrorMessage = "Password must be at least 6 characters.") }
+            return
+        }
+
+        _uiState.update { it.copy(isAuthLoading = true, authErrorMessage = null) }
+        viewModelScope.launch {
+            val result = GoogleAuthManager.signInWithEmailAndPassword(cleanEmail, password)
+            result.onSuccess { user ->
+                repository.saveUser(user)
+                checkAndUpdateUserStatus(user)
+                FirebaseSyncManager.syncUserProfile(user)
+                FirebaseSyncManager.pullAndSyncAllData(user.uid, repository)
+                _uiState.update { it.copy(isAuthLoading = false, authErrorMessage = null) }
+                showStatus("Welcome back, ${user.displayName}!")
+            }.onFailure { err ->
+                _uiState.update {
+                    it.copy(
+                        isAuthLoading = false,
+                        authErrorMessage = err.message ?: "Invalid email or password."
+                    )
+                }
+            }
+        }
+    }
+
+    fun signUpWithEmail(email: String, password: String, displayName: String) {
+        val cleanEmail = email.trim()
+        if (cleanEmail.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+            _uiState.update { it.copy(authErrorMessage = "Please enter a valid email address.") }
+            return
+        }
+        if (password.length < 6) {
+            _uiState.update { it.copy(authErrorMessage = "Password must be at least 6 characters.") }
+            return
+        }
+
+        _uiState.update { it.copy(isAuthLoading = true, authErrorMessage = null) }
+        viewModelScope.launch {
+            val result = GoogleAuthManager.createUserWithEmailAndPassword(cleanEmail, password, displayName)
+            result.onSuccess { user ->
+                repository.saveUser(user)
+                checkAndUpdateUserStatus(user)
+                FirebaseSyncManager.syncUserProfile(user)
+                FirebaseSyncManager.pullAndSyncAllData(user.uid, repository)
+                _uiState.update { it.copy(isAuthLoading = false, authErrorMessage = null) }
+                showStatus("Account created! Welcome, ${user.displayName}")
+            }.onFailure { err ->
+                _uiState.update {
+                    it.copy(
+                        isAuthLoading = false,
+                        authErrorMessage = err.message ?: "Failed to create account."
+                    )
+                }
+            }
+        }
+    }
+
+    fun sendPasswordReset(email: String, onResult: (Boolean, String) -> Unit) {
+        val cleanEmail = email.trim()
+        if (cleanEmail.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+            onResult(false, "Please enter a valid email address.")
+            return
+        }
+        viewModelScope.launch {
+            val result = GoogleAuthManager.sendPasswordResetEmail(cleanEmail)
+            result.onSuccess {
+                onResult(true, "Password reset link sent to $cleanEmail. Please check your inbox.")
+            }.onFailure { err ->
+                onResult(false, err.message ?: "Failed to send reset email.")
+            }
+        }
+    }
+
     fun dismissAuthError() {
         _uiState.update { it.copy(authErrorMessage = null) }
     }

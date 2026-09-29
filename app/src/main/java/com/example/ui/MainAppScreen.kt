@@ -81,11 +81,20 @@ fun MainAppScreen(
         )
     }
 
-    // Root Navigation Protection: Mandatory Google Authentication via Firebase
+    // Root Navigation Protection: Mandatory Authentication via Firebase
     if (uiState.currentUser == null) {
         LoginScreen(
             isLoading = uiState.isAuthLoading,
             errorMessage = uiState.authErrorMessage,
+            onSignInWithEmail = { email, password ->
+                viewModel.signInWithEmail(email, password)
+            },
+            onSignUpWithEmail = { email, password, name ->
+                viewModel.signUpWithEmail(email, password, name)
+            },
+            onSendPasswordReset = { email, callback ->
+                viewModel.sendPasswordReset(email, callback)
+            },
             onGoogleSignInClick = { activity ->
                 viewModel.signInWithGoogle(activity)
             },
