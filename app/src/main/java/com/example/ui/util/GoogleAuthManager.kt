@@ -33,28 +33,41 @@ object GoogleAuthManager {
      * Checks if a Firebase user is actively authenticated
      */
     fun getCurrentFirebaseUser(): FirebaseUser? {
-        return FirebaseAuth.getInstance().currentUser
+        return try {
+            FirebaseAuth.getInstance().currentUser
+        } catch (_: Throwable) {
+            null
+        }
     }
 
     fun isUserLoggedIn(): Boolean {
-        return FirebaseAuth.getInstance().currentUser != null
+        return try {
+            FirebaseAuth.getInstance().currentUser != null
+        } catch (_: Throwable) {
+            false
+        }
     }
 
     fun getCurrentAppUser(): AppUser? {
-        val fbUser = FirebaseAuth.getInstance().currentUser ?: return null
-        val email = fbUser.email ?: ""
-        val isAdmin = isAdminEmail(email)
-        return AppUser(
-            uid = fbUser.uid,
-            email = email.trim(),
-            displayName = fbUser.displayName?.ifBlank { null } ?: email.substringBefore("@"),
-            photoUrl = fbUser.photoUrl?.toString() ?: "",
-            isPremium = isAdmin,
-            planType = if (isAdmin) "Lifetime VIP" else "Free",
-            role = if (isAdmin) "ADMIN" else "USER",
-            registeredDate = fbUser.metadata?.creationTimestamp ?: System.currentTimeMillis(),
-            notes = if (isAdmin) "Primary Administrator" else "Google Authenticated"
-        )
+        return try {
+            val fbUser = FirebaseAuth.getInstance().currentUser ?: return null
+            val email = fbUser.email ?: ""
+            val isAdmin = isAdminEmail(email)
+            AppUser(
+                uid = fbUser.uid,
+                email = email.trim(),
+                displayName = fbUser.displayName?.ifBlank { null } ?: email.substringBefore("@"),
+                photoUrl = fbUser.photoUrl?.toString() ?: "",
+                isPremium = isAdmin,
+                planType = if (isAdmin) "Lifetime VIP" else "Free",
+                role = if (isAdmin) "ADMIN" else "USER",
+                registeredDate = fbUser.metadata?.creationTimestamp ?: System.currentTimeMillis(),
+                notes = if (isAdmin) "Primary Administrator" else "Google Authenticated"
+            )
+        } catch (e: Throwable) {
+            Log.w(TAG, "FirebaseAuth not ready or not initialized: ${e.message}")
+            null
+        }
     }
 
     /**

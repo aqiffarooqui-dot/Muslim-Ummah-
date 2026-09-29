@@ -92,7 +92,7 @@ data class MuslimUiState(
         dateKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
     ),
     // Auth & Subscription
-    val currentUser: AppUser? = GoogleAuthManager.getCurrentAppUser(),
+    val currentUser: AppUser? = null,
     val isAuthLoading: Boolean = false,
     val authErrorMessage: String? = null,
     val isAuthInitialized: Boolean = false,

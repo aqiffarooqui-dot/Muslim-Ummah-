@@ -129,4 +129,11 @@ class ExampleRobolectricTest {
         assertTrue(entitlement.canAccessAiAssistant)
         assertTrue(entitlement.canAccessOfflineDownloads)
     }
+
+    @Test
+    fun `muslim viewmodel initializes without crash`() {
+        val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+        val vm = com.example.ui.viewmodel.MuslimViewModel(app)
+        assertNotNull(vm)
+    }
 }
