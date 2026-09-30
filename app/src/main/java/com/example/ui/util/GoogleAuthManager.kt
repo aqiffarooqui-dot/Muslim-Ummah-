@@ -156,7 +156,7 @@ object GoogleAuthManager {
                 planType = "Free",
                 role = "USER",
                 registeredDate = firebaseUser.metadata?.creationTimestamp ?: System.currentTimeMillis(),
-                notes = if (isAdmin) "Primary Administrator" else "Google Authenticated"
+                notes = "Google Authenticated"
             )
             return Result.success(user)
         } else {
