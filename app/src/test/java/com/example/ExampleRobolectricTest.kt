@@ -268,7 +268,7 @@ class ExampleRobolectricTest {
     fun `muslim ummah ai provides verified citations for zakat`() {
         val answer = MuslimUmmahAiEngine.answerQuery("How is Zakat calculated?", AiMode.GENERAL)
         assertNotNull(answer)
-        assertTrue(answer.quranCitations.any { it.contains("2:43") || it.contains("9:60") })
+        assertTrue(answer.quranCitations.any { it.contains("Surah 2, Ayah 43") || it.contains("Surah 9, Ayah 60") })
         assertTrue(answer.hadithCitations.isNotEmpty())
     }
 
