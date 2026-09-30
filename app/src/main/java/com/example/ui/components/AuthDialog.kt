@@ -27,9 +27,7 @@ fun AuthDialog(
     uiState: MuslimUiState,
     onDismiss: () -> Unit,
     onSignInWithGoogle: (Activity) -> Unit,
-    onSignInWithEmail: (email: String, name: String?) -> Unit,
-    onSignOut: () -> Unit,
-    onLoginAsAdmin: () -> Unit
+    onSignOut: () -> Unit
 ) {
     val context = LocalContext.current
     var googleEmailInput by remember { mutableStateOf("") }
@@ -149,9 +147,6 @@ fun AuthDialog(
                     onClick = {
                         if (context is Activity) {
                             onSignInWithGoogle(context)
-                        } else {
-                            onLoginAsAdmin()
-                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -175,78 +170,8 @@ fun AuthDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Admin Account Direct Fast-Login Button
-                Button(
-                    onClick = {
-                        onLoginAsAdmin()
-                        onDismiss()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .testTag("direct_admin_login_btn"),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "👑", fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Sign in as aqiffarooqui@gmail.com",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
-
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Manual Google Account Email Sign-In Option
-                OutlinedButton(
-                    onClick = { showManualInput = !showManualInput },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.Mail, contentDescription = "Email", modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = if (showManualInput) "Hide Email Form" else "Sign in with another Google Email")
-                }
-
-                if (showManualInput) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = googleEmailInput,
-                        onValueChange = { googleEmailInput = it },
-                        label = { Text("Your Google Account Email") },
-                        placeholder = { Text("name@gmail.com") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(
-                        value = nameInput,
-                        onValueChange = { nameInput = it },
-                        label = { Text("Your Name (Optional)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Button(
-                        onClick = {
-                            if (googleEmailInput.isNotBlank()) {
-                                onSignInWithEmail(googleEmailInput.trim(), nameInput.trim())
-                                onDismiss()
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Authenticate Google Email")
-                    }
-                }
             }
         },
         confirmButton = {
