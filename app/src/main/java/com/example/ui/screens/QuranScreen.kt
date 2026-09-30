@@ -31,6 +31,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.*
+import com.example.ui.components.MushafPageView
+import com.example.ui.components.QuranAudioPlayerBar
+import com.example.ui.components.QuranReaderMode
+import com.example.ui.components.QuranReaderSettingsDialog
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldSecondary
 import com.example.ui.util.AudioPlaybackState
@@ -45,6 +49,13 @@ fun QuranScreen(
     onPlaySurah: (Int) -> Unit,
     onPauseAudio: () -> Unit,
     onResumeAudio: () -> Unit,
+    onPlayNextSurah: () -> Unit = {},
+    onPlayPreviousSurah: () -> Unit = {},
+    onSeekAudio: (Long) -> Unit = {},
+    onSetAudioRepeat: (Int) -> Unit = {},
+    onStopAudio: () -> Unit = onPauseAudio,
+    onSelectReciter: (String) -> Unit = {},
+    onPlayAyah: (Int, Int) -> Unit = { _, _ -> },
     onToggleBookmark: (String, Int, Int, String, String) -> Unit,
     isBookmarked: (String, Int, Int) -> Boolean,
     onSaveReadingPosition: (surahNumber: Int, ayahNumber: Int, surahName: String) -> Unit = { _, _, _ -> },
@@ -67,25 +78,32 @@ fun QuranScreen(
         }
     }
 
-    if (selectedSurah != null) {
-        // Deepest level: Ayat Reader
-        SurahReaderView(
-            surah = selectedSurah!!,
-            audioState = audioState,
-            isPremium = uiState.isPremium,
-            selectedReciter = uiState.selectedReciter,
-            onBack = { selectedSurah = null },
-            onPlaySurah = { onPlaySurah(selectedSurah!!.number) },
-            onPauseAudio = onPauseAudio,
-            onResumeAudio = onResumeAudio,
-            onToggleBookmark = onToggleBookmark,
-            isBookmarked = isBookmarked,
-            onSaveReadingPosition = onSaveReadingPosition,
-            onAddNote = onAddNote,
-            onShowPaywall = onShowPaywall,
-            modifier = modifier
-        )
-    } else if (selectedPara != null) {
+    Box(modifier = modifier.fillMaxSize()) {
+        if (selectedSurah != null) {
+            // Deepest level: Ayat Reader
+            SurahReaderView(
+                surah = selectedSurah!!,
+                audioState = audioState,
+                isPremium = uiState.isPremium,
+                selectedReciter = uiState.selectedReciter,
+                onBack = { selectedSurah = null },
+                onPlaySurah = { onPlaySurah(selectedSurah!!.number) },
+                onPauseAudio = onPauseAudio,
+                onResumeAudio = onResumeAudio,
+                onPlayNextSurah = onPlayNextSurah,
+                onPlayPreviousSurah = onPlayPreviousSurah,
+                onSeekAudio = onSeekAudio,
+                onSetAudioRepeat = onSetAudioRepeat,
+                onSelectReciter = onSelectReciter,
+                onPlayAyah = onPlayAyah,
+                onToggleBookmark = onToggleBookmark,
+                isBookmarked = isBookmarked,
+                onSaveReadingPosition = onSaveReadingPosition,
+                onAddNote = onAddNote,
+                onShowPaywall = onShowPaywall,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (selectedPara != null) {
         // Mid level: Surahs inside selected Para
         val surahsInPara = remember(selectedPara) {
             QuranRepository.getSurahsForPara(selectedPara!!.number)
@@ -160,6 +178,72 @@ fun QuranScreen(
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
+
+                // Continue Reading Card
+                if (uiState.lastQuranPosition != null) {
+                    val savedPos = uiState.lastQuranPosition!!
+                    val savedSurahObj = QuranRepository.ALL_SURAHS.find { it.number == savedPos.surahNumber }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp)
+                            .clickable {
+                                if (savedSurahObj != null) {
+                                    selectedSurah = savedSurahObj
+                                }
+                            }
+                            .testTag("quran_continue_reading_card"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = EmeraldPrimary.copy(alpha = 0.12f)),
+                        border = CardDefaults.outlinedCardBorder()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = EmeraldPrimary,
+                                modifier = Modifier.size(42.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.MenuBook,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "CONTINUE READING",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldPrimary
+                                )
+                                Text(
+                                    text = "Surah ${savedPos.surahName} • Ayah ${savedPos.ayahNumber}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Juz ${savedSurahObj?.juz ?: 1} • ${savedSurahObj?.revelationType ?: "Makki"}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Continue",
+                                tint = EmeraldPrimary
+                            )
+                        }
+                    }
+                }
 
                 // Search Bar
                 OutlinedTextField(
@@ -291,13 +375,33 @@ fun QuranScreen(
                         MemorizationModeCard(
                             isPremium = uiState.isPremium,
                             onShowPaywall = onShowPaywall,
-                            onStartSurah = { surahNum ->
+                            onStartSurah = { surahNum: Int ->
                                 selectedSurah = QuranRepository.ALL_SURAHS.find { it.number == surahNum }
                             }
                         )
                     }
                 }
             }
+        }
+    }
+
+        // Persistent Bottom Audio Player Bar
+        if (audioState.isPlaying || audioState.isLoading || audioState.currentSurahOrDuaId != null) {
+            val reciterName = QuranReciter.ALL_RECITERS.find { it.name == uiState.selectedReciter }?.name ?: uiState.selectedReciter
+            QuranAudioPlayerBar(
+                audioState = audioState,
+                reciterName = reciterName,
+                onPause = onPauseAudio,
+                onResume = onResumeAudio,
+                onNext = onPlayNextSurah,
+                onPrevious = onPlayPreviousSurah,
+                onSeek = onSeekAudio,
+                onSetRepeat = onSetAudioRepeat,
+                onStop = onStopAudio,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp)
+            )
         }
     }
 }
@@ -474,6 +578,12 @@ private fun SurahReaderView(
     onPlaySurah: () -> Unit,
     onPauseAudio: () -> Unit,
     onResumeAudio: () -> Unit,
+    onPlayNextSurah: () -> Unit = {},
+    onPlayPreviousSurah: () -> Unit = {},
+    onSeekAudio: (Long) -> Unit = {},
+    onSetAudioRepeat: (Int) -> Unit = {},
+    onSelectReciter: (String) -> Unit = {},
+    onPlayAyah: (Int, Int) -> Unit = { _, _ -> },
     onToggleBookmark: (String, Int, Int, String, String) -> Unit,
     isBookmarked: (String, Int, Int) -> Boolean,
     onSaveReadingPosition: (Int, Int, String) -> Unit,
@@ -484,8 +594,10 @@ private fun SurahReaderView(
     val context = LocalContext.current
     val verses = remember(surah.number) { QuranRepository.getVersesForSurah(surah.number) }
 
+    var readerMode by remember { mutableStateOf(QuranReaderMode.AYAH_WISE) }
+    var showSettingsSheet by remember { mutableStateOf(false) }
     var selectedLanguage by remember { mutableStateOf(QuranTranslationLanguage.ENGLISH) }
-    var fontSizeSp by remember { mutableFloatStateOf(22f) }
+    var fontSizeSp by remember { mutableFloatStateOf(24f) }
     var showTranslation by remember { mutableStateOf(true) }
     var repeatCount by remember { mutableIntStateOf(1) } // 1x, 5x, 10x
     var noteDialogAyah by remember { mutableStateOf<Ayah?>(null) }
@@ -516,6 +628,26 @@ private fun SurahReaderView(
                     }
                 },
                 actions = {
+                    // Quick Toggle between Ayah-wise and Mushaf Page Mode
+                    IconButton(onClick = {
+                        readerMode = if (readerMode == QuranReaderMode.AYAH_WISE) QuranReaderMode.MUSHAF_PAGE else QuranReaderMode.AYAH_WISE
+                    }) {
+                        Icon(
+                            imageVector = if (readerMode == QuranReaderMode.MUSHAF_PAGE) Icons.Default.FormatListNumbered else Icons.Default.AutoStories,
+                            contentDescription = "Switch Reader Mode",
+                            tint = EmeraldPrimary
+                        )
+                    }
+
+                    // Compact In-Reader Settings Control
+                    IconButton(onClick = { showSettingsSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Reader Settings",
+                            tint = EmeraldPrimary
+                        )
+                    }
+
                     // Audio Play/Pause Button
                     IconButton(
                         onClick = {
@@ -535,115 +667,65 @@ private fun SurahReaderView(
             )
         }
     ) { innerPadding ->
-        LazyColumn(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(bottom = 120.dp)
-        ) {
-            // Reader Settings Bar
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Translation Language",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
+        if (readerMode == QuranReaderMode.MUSHAF_PAGE) {
+            MushafPageView(
+                surah = surah,
+                verses = verses,
+                fontSizeSp = fontSizeSp,
+                selectedLanguage = selectedLanguage,
+                showTranslation = showTranslation,
+                isBookmarked = isBookmarked,
+                onToggleBookmark = onToggleBookmark,
+                onAddNote = onAddNote,
+                onSaveReadingPosition = onSaveReadingPosition,
+                onPlayAyah = onPlayAyah,
+                isPremium = isPremium,
+                onShowPaywall = onShowPaywall,
+                modifier = modifier.padding(innerPadding)
+            )
+        } else {
+            LazyColumn(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 18.dp),
+                contentPadding = PaddingValues(bottom = 140.dp)
+            ) {
+                // Quick Sub-Header Bar (Mode indicator & Translation chip)
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = readerMode == QuranReaderMode.AYAH_WISE,
+                                onClick = { readerMode = QuranReaderMode.AYAH_WISE },
+                                label = { Text("Ayah View") },
+                                shape = RoundedCornerShape(8.dp)
                             )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "Hide Translation", style = MaterialTheme.typography.labelSmall)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Switch(
-                                    checked = showTranslation,
-                                    onCheckedChange = { showTranslation = it },
-                                    modifier = Modifier.height(24.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Language Selector Chips (English, Urdu, Hindi, Hinglish)
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(QuranTranslationLanguage.values()) { lang ->
-                                FilterChip(
-                                    selected = selectedLanguage == lang,
-                                    onClick = { selectedLanguage = lang },
-                                    label = { Text(lang.displayName) },
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Font Size Slider
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = "A", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            Slider(
-                                value = fontSizeSp,
-                                onValueChange = { fontSizeSp = it },
-                                valueRange = 18f..32f,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 8.dp)
+                            FilterChip(
+                                selected = readerMode == QuranReaderMode.MUSHAF_PAGE,
+                                onClick = { readerMode = QuranReaderMode.MUSHAF_PAGE },
+                                label = { Text("Mushaf View") },
+                                shape = RoundedCornerShape(8.dp)
                             )
-                            Text(text = "A", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         }
 
-                        // Audio Repeat Selection (Premium Quran feature)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Recitation Repeat: ${repeatCount}x",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                listOf(1, 5, 10).forEach { count ->
-                                    Surface(
-                                        onClick = {
-                                            if (count > 1 && !isPremium) {
-                                                onShowPaywall("Repeat Recitation (5x & 10x)")
-                                            } else {
-                                                repeatCount = count
-                                            }
-                                        },
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (repeatCount == count) EmeraldPrimary else MaterialTheme.colorScheme.surface
-                                    ) {
-                                        Text(
-                                            text = "${count}x",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (repeatCount == count) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        AssistChip(
+                            onClick = { showSettingsSheet = true },
+                            label = { Text("${selectedLanguage.displayName} • ${fontSizeSp.toInt()}sp") },
+                            leadingIcon = {
+                                Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(14.dp))
+                            },
+                            shape = RoundedCornerShape(8.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
-                Spacer(modifier = Modifier.height(10.dp))
-            }
 
             // Ayat List
             items(verses) { ayah ->

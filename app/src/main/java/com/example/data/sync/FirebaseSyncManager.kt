@@ -65,9 +65,15 @@ object FirebaseSyncManager {
             val snapshot = firestore.collection("users").document(user.uid).get().await()
             if (!snapshot.exists()) return@withContext user.copy(role = "USER", isPremium = false, planType = "Free")
             val role = snapshot.getString("role")?.uppercase()?.takeIf { it == "ADMIN" } ?: "USER"
-            val isPremium = snapshot.getBoolean("isPremium") == true && role == "ADMIN"
-            val planType = if (role == "ADMIN" && isPremium) snapshot.getString("planType") ?: "Lifetime VIP" else "Free"
-            user.copy(role = role, isPremium = isPremium, planType = planType)
+            val rawIsPremium = snapshot.getBoolean("isPremium") == true
+            val expiresAt = snapshot.getLong("expiresAt")
+            val isExpired = expiresAt != null && expiresAt > 0 && expiresAt < System.currentTimeMillis()
+            val isPremium = (role == "ADMIN" || rawIsPremium) && !isExpired
+            val planType = if (isPremium) {
+                snapshot.getString("planType")?.takeIf { !it.contains("Lifetime", ignoreCase = true) }
+                    ?: if (role == "ADMIN") "1 Year" else "1 Month"
+            } else "Free"
+            user.copy(role = role, isPremium = isPremium, planType = planType, expiresAt = expiresAt)
         } catch (e: Exception) {
             Log.w(TAG, "Could not load server user profile: ${e.message}")
             user.copy(role = "USER", isPremium = false, planType = "Free")

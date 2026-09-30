@@ -2,30 +2,66 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // A user can create only a normal USER profile.
-    // ADMIN profiles must be provisioned outside the client app.
+    // Helper functions for secure server-side role and entitlement protection
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email.lower() == 'aqiffarooqui@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN')
+      );
+    }
+
+    // User profile documents
     match /users/{userId} {
-      allow create: if request.auth != null
-        && request.auth.uid == userId
-        && request.resource.data.role == "USER"
+      // Normal users can create their own profile as standard free user only
+      allow create: if isOwner(userId)
+        && request.resource.data.role == 'USER'
         && request.resource.data.isPremium == false;
 
-      // Users can update their own profile, but cannot change role or premium entitlement.
-      allow update: if request.auth != null
-        && request.auth.uid == userId
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.isPremium == resource.data.isPremium
-        && request.resource.data.planType == resource.data.planType;
+      // Normal users can update their profile (e.g. name, photo), but cannot touch role, isPremium, or planType
+      allow update: if (isOwner(userId)
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.isPremium == resource.data.isPremium
+          && request.resource.data.planType == resource.data.planType)
+        || isAdmin();
 
-      allow read: if request.auth != null && request.auth.uid == userId;
+      // Read allowed to owner or verified admin
+      allow read: if isOwner(userId) || isAdmin();
 
-      // Personal user data only.
+      // Deletion allowed only to admin
+      allow delete: if isAdmin();
+
+      // User's personal subcollections (bookmarks, notes, history, journey)
       match /{subcollection}/{docId=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId) || isAdmin();
       }
     }
 
-    // Default fallback: deny all other access.
+    // Public / App configuration (Live Pricing, App Settings)
+    match /configuration/{configId} {
+      // Anyone can read pricing configs to display current official plans
+      allow read: if true;
+      // Only authenticated admin can update or publish pricing configurations
+      allow write: if isAdmin();
+    }
+
+    // App Announcements
+    match /announcements/{announcementId} {
+      // Anyone can read announcements
+      allow read: if true;
+      // Only verified admin can create, publish, edit, or delete announcements
+      allow write: if isAdmin();
+    }
+
+    // Default fallback: Deny all unhandled paths
     match /{document=**} {
       allow read, write: if false;
     }

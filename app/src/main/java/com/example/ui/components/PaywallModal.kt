@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,13 +18,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.subscription.BillingConnectionState
+import com.example.data.subscription.PlayBillingManager
 import com.example.data.subscription.SubscriptionPlanConfig
 import com.example.data.subscription.SubscriptionPricingManager
 import com.example.ui.theme.EmeraldPrimary
@@ -34,10 +37,19 @@ import com.example.ui.theme.GoldSecondary
 fun PaywallModal(
     featureTrigger: String,
     onDismiss: () -> Unit,
-    onSubscribe: (String) -> Unit
+    onSubscribe: (Activity, String) -> Unit,
+    onRestorePurchases: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val activity = context as? Activity
+
     val livePlans by SubscriptionPricingManager.plansState.collectAsState()
     val availablePlans = remember(livePlans) { livePlans.filter { it.isEnabled } }
+
+    val billingState by PlayBillingManager.connectionState.collectAsState()
+    val playProducts by PlayBillingManager.availableProducts.collectAsState()
+    val billingStatusMsg by PlayBillingManager.billingStatusMessage.collectAsState()
+    val isPurchasing by PlayBillingManager.isPurchasing.collectAsState()
 
     var selectedPlanId by remember(availablePlans) {
         mutableStateOf(availablePlans.find { it.id == "plan_1_year" }?.id ?: availablePlans.firstOrNull()?.id ?: "plan_1_month")
@@ -147,8 +159,10 @@ fun PaywallModal(
             ) {
                 items(availablePlans, key = { it.id }) { plan ->
                     val isSelected = selectedPlanId == plan.id
+                    val playProduct = plan.googlePlayProductId?.let { playProducts[it] }
                     PlanSelectionCard(
                         plan = plan,
+                        playPrice = playProduct?.formattedPrice,
                         isSelected = isSelected,
                         onClick = { selectedPlanId = plan.id }
                     )
@@ -160,10 +174,11 @@ fun PaywallModal(
             // Subscribe Button
             Button(
                 onClick = {
-                    if (selectedPlan != null) {
-                        onSubscribe(selectedPlan.id)
+                    if (selectedPlan != null && activity != null) {
+                        onSubscribe(activity, selectedPlan.id)
                     }
                 },
+                enabled = !isPurchasing && selectedPlan != null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
@@ -171,16 +186,84 @@ fun PaywallModal(
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
             ) {
-                Text(
-                    text = "Subscribe for ${selectedPlan?.formattedPrice ?: "₹129"}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                if (isPurchasing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    val displayPrice = selectedPlan?.let { plan ->
+                        plan.googlePlayProductId?.let { playProducts[it]?.formattedPrice } ?: plan.formattedPrice
+                    } ?: "₹129"
+
+                    Text(
+                        text = "Subscribe via Google Play • $displayPrice",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Restore Purchases & Billing Info
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = onRestorePurchases,
+                    modifier = Modifier.testTag("restore_purchases_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Restore,
+                        contentDescription = "Restore",
+                        modifier = Modifier.size(16.dp),
+                        tint = EmeraldPrimary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Restore Purchases",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = EmeraldPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Text(
+                    text = when (billingState) {
+                        is BillingConnectionState.Connected -> "Play Billing: Ready"
+                        is BillingConnectionState.Connecting -> "Connecting to Play..."
+                        is BillingConnectionState.Unavailable -> "Play Store: Offline"
+                        is BillingConnectionState.Disconnected -> "Play Billing: Standby"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (!billingStatusMsg.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = billingStatusMsg ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Subscription automatically renews unless canceled in Google Play Store at least 24 hours before the end of the current period. Manage or cancel subscriptions in your Google Play account settings. No commitment, cancel anytime.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                lineHeight = 14.sp
+            )
         }
     }
 }
@@ -208,12 +291,13 @@ private fun BenefitItem(text: String) {
 @Composable
 private fun PlanSelectionCard(
     plan: SubscriptionPlanConfig,
+    playPrice: String?,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
-            .width(130.dp)
+            .width(134.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .border(
@@ -260,7 +344,7 @@ private fun PlanSelectionCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = plan.formattedPrice,
+                text = playPrice ?: plan.formattedPrice,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = EmeraldPrimary

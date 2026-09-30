@@ -55,9 +55,21 @@ fun MainAppScreen(
     val tasbihHistory by viewModel.tasbihHistory.collectAsStateWithLifecycle()
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val allUsers by viewModel.allUsers.collectAsStateWithLifecycle()
+    val activeAnnouncement by com.example.data.announcement.AnnouncementManager.activeAnnouncement.collectAsStateWithLifecycle()
 
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
     var showAuthDialog by remember { mutableStateOf(false) }
+    var showStartupAnnouncement by remember { mutableStateOf(false) }
+
+    LaunchedEffect(activeAnnouncement) {
+        val announcement = activeAnnouncement
+        if (announcement != null && announcement.isActive) {
+            val isDismissed = com.example.data.announcement.AnnouncementManager.isDismissed(context, announcement.id)
+            if (!isDismissed) {
+                showStartupAnnouncement = true
+            }
+        }
+    }
 
     // Runtime location permission launcher for device GPS
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -198,6 +210,12 @@ fun MainAppScreen(
                     onPlaySurah = { viewModel.playSurahAudio(it) },
                     onPauseAudio = { viewModel.audioPlayer.pause() },
                     onResumeAudio = { viewModel.audioPlayer.resume() },
+                    onPlayNextSurah = { viewModel.playNextSurah() },
+                    onPlayPreviousSurah = { viewModel.playPreviousSurah() },
+                    onSeekAudio = { viewModel.seekAudio(it) },
+                    onSetAudioRepeat = { viewModel.setAudioRepeat(it) },
+                    onStopAudio = { viewModel.audioPlayer.stop() },
+                    onSelectReciter = { viewModel.setReciter(it) },
                     onToggleBookmark = { type, ref, sec, title, sub ->
                         viewModel.toggleBookmark(type, ref, sec, title, sub)
                     },
@@ -342,11 +360,45 @@ fun MainAppScreen(
         PaywallModal(
             featureTrigger = uiState.paywallTriggerFeature,
             onDismiss = { viewModel.dismissPaywall() },
-            onSubscribe = { plan -> viewModel.subscribePlan(plan) },
+            onSubscribe = { act, planId -> viewModel.launchSubscriptionPurchase(act, planId) },
+            onRestorePurchases = { viewModel.restorePurchases() }
         )
     }
 
-    // Auth & Google Sign-In Dialog
+    // Startup Announcement Dialog (Requirements 18, 19, 20)
+    if (showStartupAnnouncement && activeAnnouncement != null) {
+        val announcement = activeAnnouncement!!
+        com.example.ui.components.AnnouncementDialog(
+            announcement = announcement,
+            onDismiss = {
+                com.example.data.announcement.AnnouncementManager.dismissAnnouncement(context, announcement.id)
+                showStartupAnnouncement = false
+            },
+            onCtaClick = {
+                com.example.data.announcement.AnnouncementManager.dismissAnnouncement(context, announcement.id)
+                showStartupAnnouncement = false
+                announcement.ctaUrl?.let { url ->
+                    try {
+                        val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                        context.startActivity(browserIntent)
+                    } catch (e: Exception) {
+                        // ignore
+                    }
+                }
+            }
+        )
+    }
+
+    // Centralized App Update Dialog (Requirement 21)
+    val updateInfo by com.example.data.sync.AppUpdateManager.updateState.collectAsStateWithLifecycle()
+    if (updateInfo.hasUpdate) {
+        com.example.ui.components.UpdateDialog(
+            updateInfo = updateInfo,
+            onDismiss = { com.example.data.sync.AppUpdateManager.dismissUpdate() }
+        )
+    }
+
+    // Auth & Profile Dialog
     if (showAuthDialog) {
         AuthDialog(
             uiState = uiState,
@@ -359,6 +411,12 @@ fun MainAppScreen(
                 viewModel.signOutUser(context)
                 showAuthDialog = false
             },
+            onUpgradeClick = {
+                viewModel.showPaywall("Profile Upgrade")
+            },
+            onSyncCloudClick = {
+                viewModel.triggerManualCloudSync()
+            }
         )
     }
 }

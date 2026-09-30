@@ -571,32 +571,48 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.update { it.copy(showPaywallModal = false) }
     }
 
-    fun subscribePlan(planType: String) {
+    fun launchSubscriptionPurchase(activity: android.app.Activity, planId: String) {
         val user = _uiState.value.currentUser
         if (user == null) {
             showStatus("Please sign in before subscribing.")
             return
         }
+        val plan = com.example.data.subscription.SubscriptionPricingManager.plansState.value.find { it.id == planId }
+        val googlePlayId = plan?.googlePlayProductId ?: "muslim_ummah_sub_1m"
 
-        viewModelScope.launch {
-            val durationDays = when (planType) {
-                "Monthly Pro" -> 30
-                "Annual Pro" -> 365
-                else -> null
+        com.example.data.subscription.PlayBillingManager.launchPurchaseFlow(activity, googlePlayId) { success, errorMsg ->
+            if (!success && errorMsg != null) {
+                showStatus(errorMsg)
             }
-            updateUserSubscription(user.email, true, planType, durationDays)
-            dismissPaywall()
-            showStatus("Alhamdulillah! You are now subscribed to $planType.")
         }
     }
 
+    fun subscribePlan(planId: String) {
+        // Fallback for non-activity calls
+        val plan = com.example.data.subscription.SubscriptionPricingManager.plansState.value.find { it.id == planId }
+        showStatus("To subscribe to ${plan?.name ?: planId}, complete checkout via Google Play.")
+    }
+
     fun restorePurchases() {
+        com.example.data.subscription.PlayBillingManager.restorePurchases { count, message ->
+            showStatus(message)
+        }
+    }
+
+    fun triggerManualCloudSync() {
+        val user = _uiState.value.currentUser
+        if (user == null) {
+            showStatus("Please sign in to sync with cloud.")
+            return
+        }
         viewModelScope.launch {
-            val result = SubscriptionManager.restorePurchases()
-            result.onSuccess {
-                showStatus("Purchases successfully restored!")
-            }.onFailure {
-                showStatus(it.message ?: "No purchases to restore.")
+            showStatus("Syncing data with cloud...")
+            try {
+                FirebaseSyncManager.syncUserProfile(user)
+                FirebaseSyncManager.pullAndSyncAllData(user.uid, repository)
+                showStatus("Cloud sync complete! Alhamdulillah.")
+            } catch (e: Exception) {
+                showStatus("Sync finished locally.")
             }
         }
     }
@@ -799,6 +815,15 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                 currentHijriDate = HijriCalendarHelper.getHijriDate()
             )
         }
+        try {
+            com.example.ui.util.PrayerNotificationManager.schedulePrayerNotifications(
+                getApplication(),
+                times,
+                true
+            )
+        } catch (e: Throwable) {
+            // Gracefully ignore during unit tests / headless environments
+        }
     }
 
     private fun recalculateQibla() {
@@ -913,6 +938,26 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         val surah = QuranRepository.ALL_SURAHS.find { it.number == surahNumber } ?: return
         val reciter = QuranReciter.ALL_RECITERS.find { it.name == _uiState.value.selectedReciter } ?: QuranReciter.ALL_RECITERS[0]
         audioPlayer.play(surah.number, "Surah ${surah.nameEnglish} (${reciter.name})", surah.getAudioUrl(reciter.id))
+    }
+
+    fun playNextSurah() {
+        val current = audioPlayer.playbackState.value.currentSurahNumber ?: _uiState.value.selectedSurahNumber ?: 1
+        val next = if (current >= 114) 1 else current + 1
+        playSurahAudio(next)
+    }
+
+    fun playPreviousSurah() {
+        val current = audioPlayer.playbackState.value.currentSurahNumber ?: _uiState.value.selectedSurahNumber ?: 1
+        val prev = if (current <= 1) 114 else current - 1
+        playSurahAudio(prev)
+    }
+
+    fun seekAudio(positionMs: Long) {
+        audioPlayer.seekTo(positionMs)
+    }
+
+    fun setAudioRepeat(count: Int) {
+        audioPlayer.setRepeatCount(count)
     }
 
     // Duas Actions

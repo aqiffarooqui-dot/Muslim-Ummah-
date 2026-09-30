@@ -711,14 +711,31 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "• Complete Holy Quran: All 114 Surahs, 30 Juz/Paras, verified Uthmani script with translations (English, Urdu, Hindi, Hinglish).\n" +
-                                   "• Canonical Hadith Library: Sourced Kutub al-Sittah collections (Bukhari, Muslim, Tirmidhi, Abu Dawud, Nasa'i, Ibn Majah).\n" +
-                                   "• Astronomical Prayer Times: High-precision astronomical calculations with location-aware countdowns.\n" +
-                                   "• Precision Qibla Compass: Device sensor telemetry calibrated to the Holy Kaaba.\n" +
-                                   "• Authentic Daily Duas & 99 Names: Sourced supplications with Arabic, transliterations and meanings.\n" +
-                                   "• Digital Tasbih & Dhikr Tracker: Haptic-enabled counter with session history.",
+                            text = "• Complete Holy Quran: All 114 Surahs, 30 Juz/Paras, verified Uthmani script with translations (English, Urdu, Hindi, Hinglish), audio reciter streaming, Mushaf page view, and continue-reading memory.\n" +
+                                   "• Canonical Hadith Library: Complete Kutub al-Sittah collections (Sahih al-Bukhari, Sahih Muslim, Sunan an-Nasa'i, Sunan Abi Dawud, Jami` at-Tirmidhi, Sunan Ibn Majah) with chapter navigation, multilingual translations, and full-text search.\n" +
+                                   "• Astronomical Prayer Times: High-precision astronomical calculations with location-aware countdowns, next prayer tracking, and adhan reminders.\n" +
+                                   "• Precision Qibla Compass: Device sensor magnetics and accelerometer calibrated to the Holy Kaaba in Makkah.\n" +
+                                   "• Authentic Daily Duas & Ruqyah: Hisn al-Muslim supplications with Arabic, transliterations, translations, and category search.\n" +
+                                   "• 99 Names of Allah (Asma-ul-Husna): Arabic text, meanings, and spiritual benefits.\n" +
+                                   "• Digital Tasbih: Tactile haptic-enabled counter with target intervals and local persistence.\n" +
+                                   "• Worship & Progress Tracking (My Journey): Daily Salah tracker, Fasting/Sawm log, Ramadan tracker, and Qada calculator.\n" +
+                                   "• Source-Grounded Islamic AI: AI assistant with strict Quranic and Hadith citations.",
                             style = MaterialTheme.typography.bodySmall,
                             lineHeight = 20.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    item {
+                        Text(
+                            text = "Premium Experience Overview",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Muslim Ummah offers 5 clear subscription plans (7 Days: ₹49, 1 Month: ₹129, 3 Months: ₹299, 9 Months: ₹649, 1 Year: ₹799) unlocking 100% ad-free experience, unlimited source-grounded Islamic AI, multiple world-class Quran reciters, advanced study tools, and cross-device cloud sync.",
+                            style = MaterialTheme.typography.bodySmall,
+                            lineHeight = 18.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -730,10 +747,10 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "• Quran text & translations: Tanzil Project & King Fahd Quran Printing Complex.\n" +
-                                   "• Hadith texts: Shamela & Sunnah corpus.\n" +
-                                   "• Prayer calculation algorithms: PrayTimes.org & astronomical conventions.\n" +
-                                   "• Audio recitations: EveryAyah.com & Quran Central open archives.",
+                            text = "• Quran text & translations: Tanzil Project & King Fahd Quran Printing Complex (KFQPC).\n" +
+                                   "• Hadith texts: Shamela & Sunnah.com corpus archives.\n" +
+                                   "• Prayer calculation algorithms: PrayTimes.org astronomical formulas.\n" +
+                                   "• Audio recitations: EveryAyah.com & Quran Central open repositories.",
                             style = MaterialTheme.typography.bodySmall,
                             lineHeight = 18.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

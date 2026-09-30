@@ -41,7 +41,7 @@ data class AppUser(
     val displayName: String,
     val photoUrl: String = "",
     val isPremium: Boolean = false,
-    val planType: String = "Free", // "Free", "Monthly Pro", "Annual Pro", "Lifetime VIP"
+    val planType: String = "Free", // "Free", "7 Days", "1 Month", "3 Months", "9 Months", "1 Year"
     val role: String = "USER", // "ADMIN" or "USER"
     val registeredDate: Long = System.currentTimeMillis(),
     val expiresAt: Long? = null,

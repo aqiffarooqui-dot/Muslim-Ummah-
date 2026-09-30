@@ -30,9 +30,19 @@ data class HadithItem(
     val englishTranslation: String,
     val urduTranslation: String,
     val hindiTranslation: String,
+    val hinglishTranslation: String = "",
     val grade: String = "Sahih (صحيح)",
     val reference: String = "Canonical Islamic Tradition"
-)
+) {
+    fun getTranslation(lang: String): String {
+        return when (lang.lowercase()) {
+            "urdu" -> urduTranslation.ifBlank { englishTranslation }
+            "hindi" -> hindiTranslation.ifBlank { englishTranslation }
+            "hinglish" -> hinglishTranslation.ifBlank { englishTranslation }
+            else -> englishTranslation
+        }
+    }
+}
 
 object HadithRepository {
 
@@ -159,6 +169,7 @@ object HadithRepository {
             englishTranslation = "I heard the Messenger of Allah (ﷺ) say: 'The reward of deeds depends upon the intentions and every person will get the reward according to what he has intended. So whoever emigrated for worldly benefits or for a woman to marry, his emigration was for what he emigrated for.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: اعمال کا دارومدار نیتوں پر ہے، اور ہر شخص کے لیے وہی ہے جس کی اس نے نیت کی۔ پس جس کی ہجرت دنیا کمانے کے لیے ہو یا کسی عورت سے نکاح کے لیے، تو اس کی ہجرت اسی کے لیے ہے جس کی طرف اس نے ہجرت کی۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: आमाल (कर्मों) का दारोमदार नीयतों पर है, और हर इंसान को वही मिलेगा जिसकी उसने नीयत की। पस जिसकी हिजरत दुनिया कमाने या किसी औरत से निकाह के लिए हो, तो उसकी हिजरत उसी के लिए है जिसके लिए उसने हिजरत की।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Aamaal ka daaromadaar niyaton par hai, aur har shakhs ko wahi milega jiski usne niyat ki. Pas jiski hijrat duniya kamane ya kisi aurat se nikah ke liye ho, toh uski hijrat usi ke liye hai jiske liye usne hijrat ki.",
             grade = "Sahih (صحيح)",
             reference = "Sahih al-Bukhari 1 • In-book reference: Book 1, Hadith 1"
         ),
@@ -174,6 +185,7 @@ object HadithRepository {
             englishTranslation = "The Prophet (ﷺ) said: 'None of you truly believes until he loves for his brother (or sister) what he loves for himself.'",
             urduTranslation = "نبی کریم صلی اللہ علیہ وسلم نے فرمایا: تم میں سے کوئی شخص اس وقت تک سچا مومن نہیں ہو سکتا جب تک کہ وہ اپنے بھائی کے لیے وہی پسند نہ کرے جو اپنے لیے پسند کرتا ہے۔",
             hindiTranslation = "नबी करीम (ﷺ) ने फरमाया: तुम में से कोई शख्स उस वक्त तक सच्चा मोमिन नहीं हो सकता जब तक कि वह अपने भाई के लिए वही पसंद न करे जो अपने लिए पसंद करता है।",
+            hinglishTranslation = "Nabi Kareem (ﷺ) ne farmaya: Tum me se koi shakhs us waqt tak saccha momin nahi ho sakta jab tak ke woh apne bhai ke liye wahi pasand na kare jo apne liye pasand karta hai.",
             grade = "Sahih (صحيح)",
             reference = "Sahih al-Bukhari 13 • In-book reference: Book 2, Hadith 6"
         ),
@@ -189,6 +201,7 @@ object HadithRepository {
             englishTranslation = "The Prophet (ﷺ) said: 'The best among you are those who learn the Quran and teach it to others.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: تم میں سے بہترین وہ شخص ہے جو قرآن سیکھے اور اسے دوسروں کو سکھائے۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: तुम में सबसे बेहतर वह इंसान है जो क़ुरआन सीखे और दूसरों को सिखाए।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Tum me se behtareen woh shakhs hai jo Quran seekhe aur doosron ko sikhaye.",
             grade = "Sahih (صحيح)",
             reference = "Sahih al-Bukhari 5027 • In-book reference: Book 66, Hadith 49"
         ),
@@ -204,6 +217,7 @@ object HadithRepository {
             englishTranslation = "The Prophet (ﷺ) said: 'Whoever believes in Allah and the Last Day should speak good or remain silent; and whoever believes in Allah and the Last Day should be generous to his neighbor; and whoever believes in Allah and the Last Day should be hospitable to his guest.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: جو شخص اللہ اور آخرت کے دن پر ایمان رکھتا ہو اسے چاہیے کہ وہ بھلی بات کہے یا خاموش رہے، اور جو اللہ اور یوم آخرت پر ایمان رکھتا ہو وہ اپنے پڑوسی کی عزت کرے، اور جو اللہ اور یوم آخرت پر ایمان رکھتا ہو وہ اپنے مہمان کی مہمان نوازی کرے۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: जो शख्स अल्लाह और आखिरत के दिन पर ईमान रखता हो उसे चाहिए कि वह अच्छी बात कहे या खामोश रहे, और जो अल्लाह और कयामत पर ईमान रखता हो वह अपने पड़ोसी की इज्जत करे, और जो अल्लाह और आखिरत पर ईमान रखता हो वह अपने मेहमान की खातिरदारी करे।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Jo shakhs Allah aur aakhirat ke din par imaan rakhta ho use chahiye ke acchi baat kahe ya khamosh rahe, apne padosi ki izzat kare aur mehmaan ki mehmaan-nawazi kare.",
             grade = "Sahih (صحيح)",
             reference = "Sahih al-Bukhari 6094 • In-book reference: Book 78, Hadith 125"
         ),
@@ -221,6 +235,7 @@ object HadithRepository {
             englishTranslation = "The Messenger of Allah (ﷺ) said to Jibreel: 'Islam is that you testify there is no god worthy of worship except Allah and that Muhammad is the Messenger of Allah, establish Salah, pay Zakah, fast during Ramadan, and perform pilgrimage to the House if you are able to do so.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: اسلام یہ ہے کہ تم گواہی دو کہ اللہ کے سوا کوئی معبود برحق نہیں اور محمد صلی اللہ علیہ وسلم اللہ کے رسول ہیں، اور نماز قائم کرو، زکوٰۃ ادا کرو، رمضان کے روزے رکھو، اور اگر استطاعت ہو تو بیت اللہ کا حج کرو۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: इस्लाम यह है कि तुम गवाही दो कि अल्लाह के सिवा कोई सच्चा माबूद नहीं और मुहम्मद (ﷺ) अल्लाह के रसूल हैं, नमाज़ कायम करो, ज़कात अदा करो, रमज़ान के रोज़े रखो, और हज करो अगर वहां तक जाने की ताकत रखते हो।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Islam yeh hai ke tum gawahi do ke Allah ke siwa koi mabood nahi aur Muhammad (ﷺ) Allah ke rasool hain, namaz qayam karo, zakat ada karo, Ramadan ke roze rakho, aur agar taaqat ho toh Baitullah ka Hajj karo.",
             grade = "Sahih (صحيح)",
             reference = "Sahih Muslim 8 • In-book reference: Book 1, Hadith 1"
         ),
@@ -236,6 +251,7 @@ object HadithRepository {
             englishTranslation = "The Messenger of Allah (ﷺ) said: 'Purity is half of faith. Alhamdulillah fills the Scale. SubhanAllah and Alhamdulillah fill what is between the heavens and the earth. Prayer is light, charity is proof, patience is illumination, and the Quran is an argument for you or against you.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: پاکیزگی نصف ایمان ہے، اور الحمد للہ میزان کو بھر دیتا ہے، اور سبحان اللہ اور الحمد للہ آسمانوں اور زمین کے درمیانی خلا کو بھر دیتے ہیں، اور نماز نور ہے، صدقہ دلیل ہے، صبر روشنی ہے، اور قرآن تمہارے حق میں یا تمہارے خلاف حجت ہے۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: पाकीज़गी आधा ईमान है, और अल्हम्दुलिल्लाह तराज़ू को भर देता है, और सुब्हानअल्लाह व अल्हम्दुलिल्लाह ज़मीन व आसमान के दरमियान की जगह को भर देते हैं, नमाज़ नूर है, सदका दलील है, सब्र रोशनी है, और क़ुरआन तुम्हारे हक़ में या तुम्हारे खिलाफ हुज्जत है।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Pakeezgi aadha imaan hai, aur Alhamdulillah tarazu ko bhar deta hai, namaz noor hai, sadqah daleel hai, sabr roshni hai, aur Quran tumhare haq mein ya khilaaf hujjat hai.",
             grade = "Sahih (صحيح)",
             reference = "Sahih Muslim 223 • In-book reference: Book 2, Hadith 1"
         ),
@@ -251,6 +267,7 @@ object HadithRepository {
             englishTranslation = "The Messenger of Allah (ﷺ) said: 'Whoever treads a path seeking knowledge, Allah makes easy for him a path to Paradise. No people gather together in one of the houses of Allah, reciting the Book of Allah and studying it between themselves, but tranquility descends upon them, mercy covers them, the angels surround them, and Allah mentions them to those near Him.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: جو شخص علم کی تلاش میں کسی راستے پر چلے، اللہ اس کے لیے جنت کا راستہ آسان فرما دیتا ہے۔ اور جب بھی کچھ لوگ اللہ کے گھروں میں سے کسی گھر میں جمع ہو کر اللہ کی کتاب کی تلاوت کرتے ہیں اور اسے آپس میں پڑھتے پڑھاتے ہیں، تو ان پر سکینت نازل ہوتی ہے، رحمت انہیں ڈھانپ لیتی ہے، فرشتے انہیں گھیر لیتے ہیں اور اللہ اپنے پاس موجود فرشتوں میں ان کا ذکر فرماتا ہے۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: जो शख्स इल्म (ज्ञान) की तलाश में किसी रास्ते पर चले, अल्लाह उसके लिए जन्नत का रास्ता आसान कर देता है। और जब भी कुछ लोग अल्लाह के घरों (मस्जिदों) में जमा होकर क़ुरआन पढ़ते और एक दूसरे को सिखाते हैं, उन पर सकीना (शांति) नाज़िल होती है, रहमत उन्हें ढांप लेती है और फरिश्ते उन्हें घेर लेते हैं।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Jo shakhs ilam ki talash me kisi raste par chale, Allah uske liye jannat ka rasta aasan kar deta hai. Aur jab bhi log Allah ke gharon me Quran padhte aur seekhte hain, un par sakeenat naazil hoti hai aur rehmat unhe dhaanp leti hai.",
             grade = "Sahih (صحيح)",
             reference = "Sahih Muslim 2699 • In-book reference: Book 48, Hadith 50"
         ),
@@ -268,6 +285,7 @@ object HadithRepository {
             englishTranslation = "The Messenger of Allah (ﷺ) said: 'Your smiling in the face of your brother is charity for you.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: اپنے بھائی کے چہرے پر تمہارا مسکرانا تمہارے لیے صدقہ ہے۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: अपने भाई के चेहरे को देखकर तुम्हारा मुस्कुराना भी तुम्हारे लिए सदका है।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Apne bhai ke chehre par tumhara muskurana bhi tumhare liye sadqah hai.",
             grade = "Sahih (صحيح)",
             reference = "Jami` at-Tirmidhi 1956 • In-book reference: Book 27, Hadith 62"
         ),
@@ -283,6 +301,7 @@ object HadithRepository {
             englishTranslation = "The Prophet (ﷺ) said: 'If you were to rely upon Allah with the required reliance, He would provide for you just as He provides for the birds: they go out in the morning with empty stomachs and return in the evening full.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: اگر تم اللہ پر ویسا توکل کرو جیسا کہ اس پر توکل کرنے کا حق ہے، تو وہ تمہیں اسی طرح رزق دے گا جس طرح پرندوں کو رزق دیتا ہے؛ وہ صبح خالی پیٹ نکلتے ہیں اور شام کو پیٹ بھر کر لوٹتے ہیں۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: अगर तुम अल्लाह पर वैसा भरोसा (तवक्कुल) करो जैसा भरोसा करने का हक है, तो वह तुम्हें उसी तरह रिज़्क देगा जैसे परिंदों को देता है; वे सुबह भूखे पेट निकलते हैं और शाम को पेट भर कर लौटते हैं।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Agar tum Allah par waisa tawakkul karo jaisa haq hai, toh woh tumhe waise hi rizq dega jaise parindon ko deta hai; woh subah bhookhe nikalte hain aur shaam ko pet bhar kar laut'te hain.",
             grade = "Hasan Sahih (حسن صحيح)",
             reference = "Jami` at-Tirmidhi 2344 • In-book reference: Book 36, Hadith 41"
         ),
@@ -300,6 +319,7 @@ object HadithRepository {
             englishTranslation = "The Messenger of Allah (ﷺ) said: 'Enjoin your children to pray when they are seven years old.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: اپنی اولاد کو نماز کا حکم دو جب وہ سات سال کے ہو جائیں۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: अपनी औलाद को नमाज़ का हुक्म दो जब वे सात साल के हो जाएं।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Apni aulaad ko namaz ka hukm do jab woh saat saal ke ho jayein.",
             grade = "Hasan Sahih (حسن صحيح)",
             reference = "Sunan Abi Dawud 495 • In-book reference: Book 2, Hadith 105"
         ),
@@ -315,6 +335,7 @@ object HadithRepository {
             englishTranslation = "The Prophet (ﷺ) said: 'He who does not thank people does not thank Allah.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: جو انسانوں کا شکر ادا نہیں کرتا، وہ اللہ کا شکر بھی ادا نہیں کرتا۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: जो इंसानों का शुक्र अदा नहीं करता, वह अल्लाह का शुक्र भी अदा नहीं करता।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Jo insano ka shukr ada nahi karta, woh Allah ka shukr bhi ada nahi karta.",
             grade = "Sahih (صحيح)",
             reference = "Sunan Abi Dawud 4799 • In-book reference: Book 43, Hadith 27"
         ),
@@ -332,6 +353,7 @@ object HadithRepository {
             englishTranslation = "A man asked the Prophet (ﷺ) about going on expedition, and the Prophet asked: 'Is your mother alive?' He said: 'Yes.' The Prophet (ﷺ) said: 'Stay by her feet, for Paradise is there.'",
             urduTranslation = "ایک صحابی نے رسول اللہ صلی اللہ علیہ وسلم سے جہاد میں شرکت کی اجازت چاہی تو آپ ﷺ نے پوچھا: کیا تمہاری والدہ حیات ہیں؟ انہوں نے عرض کیا: جی ہاں۔ آپ ﷺ نے فرمایا: ان کی خدمت لازم پکڑ لو، کیونکہ جنت ان کے قدموں تلے ہے۔",
             hindiTranslation = "एक सहाबी ने रसूलुल्लाह (ﷺ) से पूछा कि मैं जिहाद में जाना चाहता हूँ। आप (ﷺ) ने पूछा: क्या तुम्हारी माँ ज़िंदा हैं? उन्होंने कहा: हाँ। नबी (ﷺ) ने फरमाया: उनके पैरों से लिपटे रहो (उनकी सेवा करो), क्योंकि जन्नत वहीं है।",
+            hinglishTranslation = "Ek sahabi ne jihad ki ijazat mangi toh Rasoolullah (ﷺ) ne farmaya: Kya tumhari maa zinda hain? Kaha: Haan. Farmaya: Unke qadmon ki khidmat lazim pakad lo, kyunki jannat wahi hai.",
             grade = "Sahih (صحيح)",
             reference = "Sunan an-Nasa'i 3104 • In-book reference: Book 25, Hadith 20"
         ),
@@ -349,6 +371,7 @@ object HadithRepository {
             englishTranslation = "The Messenger of Allah (ﷺ) said: 'Seeking knowledge is an obligation upon every Muslim.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: علم حاصل کرنا ہر مسلمان پر فرض ہے۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: इल्म (ज्ञान) हासिल करना हर मुसलमान (मर्द और औरत) पर फर्ज़ है।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Ilm hasil karna har Musalman par farz hai.",
             grade = "Sahih (صحيح)",
             reference = "Sunan Ibn Majah 224 • In-book reference: Introduction, Hadith 224"
         ),
@@ -366,6 +389,7 @@ object HadithRepository {
             englishTranslation = "The Prophet (ﷺ) said: 'Religion is sincerity.' We said: 'To whom?' He said: 'To Allah, to His Book, to His Messenger, and to the leaders of the Muslims and their common folk.'",
             urduTranslation = "نبی کریم صلی اللہ علیہ وسلم نے فرمایا: دین سراسر خیر خواہی اور اخلاص کا نام ہے۔ ہم نے عرض کیا: کس کے لیے؟ آپ نے فرمایا: اللہ کے لیے، اس کی کتاب کے لیے، اس کے رسول کے لیے، اور مسلمانوں کے ائمہ و حکمرانوں اور عام مسلمانوں کے لیے۔",
             hindiTranslation = "नबी करीम (ﷺ) ने फरमाया: दीन भलाई और खुलूस (ईमानदारी) का नाम है। हमने पूछा: किसके लिए? फरमाया: अल्लाह के लिए, उसकी किताब के लिए, उसके रसूल के लिए, और मुसलमानों के हाकिमों और आम मुसलमानों के लिए।",
+            hinglishTranslation = "Nabi Kareem (ﷺ) ne farmaya: Deen sarasar khair khwahi aur ikhlas ka naam hai. Humne pucha: Kiske liye? Farmaya: Allah ke liye, uski Kitab ke liye, uske Rasool ke liye, aur Musalmano ke aaimah aur aam Musalmano ke liye.",
             grade = "Sahih (صحيح)",
             reference = "Sahih Muslim 55 • 40 Hadith Nawawi #7"
         ),
@@ -381,6 +405,7 @@ object HadithRepository {
             englishTranslation = "The Messenger of Allah (ﷺ) said: 'Fear Allah wherever you may be; follow up a bad deed with a good deed which will wipe it out; and behave toward people with good character.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: تم جہاں کہیں بھی ہو اللہ سے ڈرو، اور برائی کے بعد نیکی کرو وہ اسے مٹا دے گی، اور لوگوں کے ساتھ حسن اخلاق سے پیش آؤ۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: तुम जहाँ कहीं भी रहो अल्लाह से डरो, और बुराई के बाद नेकी करो वह उसे मिटा देगी, और लोगों के साथ अच्छे अखलाक (सद्व्यवहार) से पेश आओ।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Tum jahan kahin bhi raho Allah se daro, aur burai ke baad neki karo woh use mita degi, aur logon ke sath husn-e-akhlaq se pesh aao.",
             grade = "Hasan (حسن)",
             reference = "Jami` at-Tirmidhi 1987 • 40 Hadith Nawawi #18"
         ),
@@ -398,6 +423,7 @@ object HadithRepository {
             englishTranslation = "The Messenger of Allah (ﷺ) said: 'How wonderful is the affair of the believer, for his affairs are all good, and this is for no one except a believer: If something good happens to him, he is thankful and that is good for him; and if something harmful touches him, he is patient and that is good for him.'",
             urduTranslation = "رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: مومن کا معاملہ بھی کتنا عجیب و غریب ہے! اس کا ہر معاملہ اس کے لیے خیر ہی خیر ہے، اور یہ فضیلت مومن کے سوا کسی کو حاصل نہیں: اگر اسے کوئی خوشی پہنچے تو وہ شکر ادا کرتا ہے تو یہ اس کے لیے خیر ہوتا ہے، اور اگر اسے کوئی تکلیف پہنچے تو وہ صبر کرتا ہے تو یہ بھی اس کے لیے خیر ہوتا ہے۔",
             hindiTranslation = "रसूलुल्लाह (ﷺ) ने फरमाया: मोमिन का मामला भी कितना अजीब है! उसका हर मामला उसके लिए भलाई ही भलाई है, और यह बात मोमिन के अलावा किसी को हासिल नहीं: अगर उसे कोई खुशी पहुँचे तो वह शुक्र अदा करता है तो यह उसके लिए भलाई है, और अगर कोई परेशानी पहुँचे तो वह सब्र करता है तो यह भी उसके लिए भलाई है।",
+            hinglishTranslation = "Rasoolullah (ﷺ) ne farmaya: Momin ka maamla bhi kitna ajeeb hai! Uska har maamla uske liye khair hi khair hai: Agar use khushi pahuche toh woh shukr ada karta hai jo uske liye behtar hai, aur takleef pahuche toh sabr karta hai jo uske liye behtar hai.",
             grade = "Sahih (صحيح)",
             reference = "Sahih Muslim 2999 • Riyad as-Salihin #27"
         )

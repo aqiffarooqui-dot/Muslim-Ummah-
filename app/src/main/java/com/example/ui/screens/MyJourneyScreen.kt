@@ -47,8 +47,8 @@ fun MyJourneyScreen(
     val hadithBookmarksCount = bookmarks.count { it.type == "HADITH" }
     val duaBookmarksCount = bookmarks.count { it.type == "DUA" }
 
-    val khatamCompletedPages = khatamProgress?.completedPages ?: 45
-    val khatamPercentage = ((khatamCompletedPages.toFloat() / 604f) * 100).toInt()
+    val khatamCompletedPages = khatamProgress?.completedPages ?: 0
+    val khatamPercentage = if (khatamCompletedPages > 0) ((khatamCompletedPages.toFloat() / 604f) * 100).toInt() else 0
 
     LazyColumn(
         modifier = modifier

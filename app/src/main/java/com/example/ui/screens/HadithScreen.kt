@@ -58,6 +58,7 @@ fun HadithScreen(
     var selectedChapter by remember { mutableStateOf<HadithChapter?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var studyModeEnabled by remember { mutableStateOf(false) }
+    var selectedTranslationLanguage by remember { mutableStateOf("All") }
     var showNoteDialogForHadith by remember { mutableStateOf<HadithItem?>(null) }
     var noteInputText by remember { mutableStateOf("") }
 
@@ -123,6 +124,27 @@ fun HadithScreen(
                     )
                 }
 
+                // Language Filter Chips
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Translation:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    listOf("All", "English", "Urdu", "Hindi", "Hinglish").forEach { lang ->
+                        FilterChip(
+                            selected = selectedTranslationLanguage == lang,
+                            onClick = { selectedTranslationLanguage = lang },
+                            label = { Text(lang, style = MaterialTheme.typography.labelSmall) },
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(14.dp))
             }
 
@@ -143,6 +165,7 @@ fun HadithScreen(
                     hadith = hadith,
                     isBookmarked = bookmarked,
                     isStudyMode = studyModeEnabled,
+                    selectedLanguage = selectedTranslationLanguage,
                     onToggleBookmark = {
                         onToggleBookmark(
                             "HADITH",
@@ -681,6 +704,7 @@ private fun HadithDetailCard(
     hadith: HadithItem,
     isBookmarked: Boolean,
     isStudyMode: Boolean,
+    selectedLanguage: String = "All",
     onToggleBookmark: () -> Unit,
     onCopy: () -> Unit,
     onShare: () -> Unit,
@@ -762,7 +786,7 @@ private fun HadithDetailCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Arabic Matn
+            // Arabic Matn (Sacred Original - never labeled as translation)
             Text(
                 text = hadith.arabicText,
                 style = MaterialTheme.typography.headlineSmall,
@@ -777,33 +801,36 @@ private fun HadithDetailCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             // English Translation
-            Text(
-                text = hadith.englishTranslation,
-                style = MaterialTheme.typography.bodyLarge,
-                lineHeight = 24.sp
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Urdu Translation
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            if (selectedLanguage == "All" || selectedLanguage == "English") {
                 Text(
-                    text = "اردو: ${hadith.urduTranslation}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = FontFamily.Serif,
-                    textAlign = TextAlign.End,
-                    lineHeight = 24.sp,
-                    modifier = Modifier.padding(12.dp)
+                    text = hadith.englishTranslation,
+                    style = MaterialTheme.typography.bodyLarge,
+                    lineHeight = 24.sp
                 )
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // Hindi Translation (if study mode or Indian user)
-            if (isStudyMode) {
-                Spacer(modifier = Modifier.height(8.dp))
+            // Urdu Translation
+            if (selectedLanguage == "All" || selectedLanguage == "Urdu") {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "اردو: ${hadith.urduTranslation}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Serif,
+                        textAlign = TextAlign.End,
+                        lineHeight = 24.sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            // Hindi Translation
+            if (selectedLanguage == "All" || selectedLanguage == "Hindi" || isStudyMode) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
@@ -811,7 +838,7 @@ private fun HadithDetailCard(
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "हिंदी अनुवाद (Hindi Translation):",
+                            text = "हिंदी अनुवाद (Hindi):",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -822,15 +849,42 @@ private fun HadithDetailCard(
                             style = MaterialTheme.typography.bodyMedium,
                             lineHeight = 22.sp
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            // Hinglish Translation
+            if (selectedLanguage == "All" || selectedLanguage == "Hinglish") {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "Reference: ${hadith.reference}",
+                            text = "Hinglish (Roman Urdu / Hindi):",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = hadith.hinglishTranslation,
+                            style = MaterialTheme.typography.bodyMedium,
+                            lineHeight = 22.sp
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(10.dp))
             }
+
+            // Reference Badge
+            Text(
+                text = "Reference: ${hadith.reference}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 

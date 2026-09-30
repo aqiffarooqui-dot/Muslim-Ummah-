@@ -113,7 +113,7 @@ class MuslimRepository(private val dao: MuslimDao) {
             displayName = "Aqif Farooqui",
             photoUrl = "",
             isPremium = true,
-            planType = "Lifetime VIP",
+            planType = "1 Year",
             role = "ADMIN",
             registeredDate = System.currentTimeMillis() - (90L * 24 * 3600 * 1000),
             notes = "Super Administrator"

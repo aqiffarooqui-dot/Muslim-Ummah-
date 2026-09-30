@@ -14,6 +14,8 @@ class MuslimUmmahApplication : Application() {
             } else {
                 Log.d("MuslimUmmahApp", "FirebaseApp already initialized by content provider")
             }
+            // Initialize real Google Play Billing architecture safely
+            com.example.data.subscription.PlayBillingManager.initialize(this)
         } catch (e: Throwable) {
             Log.e("MuslimUmmahApp", "Failed to initialize FirebaseApp: ${e.message}", e)
         }
