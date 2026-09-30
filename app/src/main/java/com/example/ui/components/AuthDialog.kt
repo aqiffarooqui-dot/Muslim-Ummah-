@@ -145,8 +145,10 @@ fun AuthDialog(
                 // Primary One-Tap Google Sign-In with Credential Manager
                 Button(
                     onClick = {
-                        if (context is Activity) {
-                            onSignInWithGoogle(context)
+                        val activity = context as? Activity
+                        if (activity != null) {
+                            onSignInWithGoogle(activity)
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
