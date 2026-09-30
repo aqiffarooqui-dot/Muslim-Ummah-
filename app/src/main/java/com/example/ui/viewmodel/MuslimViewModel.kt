@@ -272,7 +272,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         observeCompass()
     }
 
-    private fun checkAndUpdateUserStatus(user: AppUser?) {
+    private suspend fun checkAndUpdateUserStatus(user: AppUser?) {
         if (user == null) {
             _uiState.update {
                 it.copy(
@@ -285,17 +285,15 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
-        val isAdmin = GoogleAuthManager.isAdminEmail(user.email)
-        val isPremium = isAdmin || user.isPremium
+        val serverUser = FirebaseSyncManager.applyServerUserProfile(user)
+        val isAdmin = serverUser.role == "ADMIN"
+        val isPremium = serverUser.isPremium
 
-        SubscriptionManager.updateEntitlementForUser(user.email, isPremium, user.planType, user.expiresAt)
+        SubscriptionManager.updateEntitlementForUser(serverUser.email, isPremium, serverUser.planType, serverUser.expiresAt)
 
         _uiState.update {
             it.copy(
-                currentUser = user.copy(
-                    role = if (isAdmin) "ADMIN" else user.role,
-                    isPremium = isPremium
-                ),
+                currentUser = serverUser,
                 isAdmin = isAdmin,
                 isPremium = isPremium
             )
@@ -454,15 +452,6 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             FirebaseSyncManager.syncUserProfile(user)
             FirebaseSyncManager.pullAndSyncAllData(user.uid, repository)
             showStatus("Signed in as ${user.displayName}")
-        }
-    }
-
-    fun loginAsAdmin() {
-        val admin = GoogleAuthManager.createDefaultAdminUser()
-        viewModelScope.launch {
-            repository.saveUser(admin)
-            checkAndUpdateUserStatus(admin)
-            showStatus("Welcome back Administrator (aqiffarooqui@gmail.com)")
         }
     }
 
