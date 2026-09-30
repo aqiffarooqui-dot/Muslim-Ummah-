@@ -572,7 +572,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
     fun subscribePlan(planType: String) {
         val user = _uiState.value.currentUser
         if (user == null) {
-            loginAsAdmin()
+            showStatus("Please sign in before subscribing.")
             return
         }
 
@@ -629,10 +629,6 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
 
     fun deleteUserByAdmin(email: String) {
         viewModelScope.launch {
-            if (GoogleAuthManager.isAdminEmail(email)) {
-                showStatus("Cannot delete primary administrator account.")
-                return@launch
-            }
             repository.deleteUser(email)
             showStatus("User $email has been removed.")
         }
@@ -650,7 +646,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
                 displayName = displayName.ifBlank { email.substringBefore("@") },
                 isPremium = isPremium,
                 planType = planType,
-                role = if (GoogleAuthManager.isAdminEmail(email)) "ADMIN" else "USER",
+                role = "USER",
                 registeredDate = System.currentTimeMillis()
             )
             repository.saveUser(newUser)
