@@ -56,6 +56,24 @@ object FirebaseSyncManager {
     }
 
     /**
+     * Loads server-controlled role and entitlement from users/{uid}.
+     * Client login payloads are never trusted for admin status.
+     */
+    suspend fun applyServerUserProfile(user: AppUser): AppUser = withContext(Dispatchers.IO) {
+        if (user.uid.isBlank()) return@withContext user.copy(role = "USER", isPremium = false, planType = "Free")
+        try {
+            val snapshot = firestore.collection("users").document(user.uid).get().await()
+            if (!snapshot.exists()) return@withContext user.copy(role = "USER", isPremium = false, planType = "Free")
+            val role = snapshot.getString("role")?.uppercase()?.takeIf { it == "ADMIN" } ?: "USER"
+            val isPremium = snapshot.getBoolean("isPremium") == true && role == "ADMIN"
+            val planType = if (role == "ADMIN" && isPremium) snapshot.getString("planType") ?: "Lifetime VIP" else "Free"
+            user.copy(role = role, isPremium = isPremium, planType = planType)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not load server user profile: ${e.message}")
+            user.copy(role = "USER", isPremium = false, planType = "Free")
+        }
+    }
+    /**
      * Syncs Quran reading position to users/{uid}/quran/position
      */
     suspend fun saveQuranPosition(uid: String, position: QuranReadingPosition) = withContext(Dispatchers.IO) {
