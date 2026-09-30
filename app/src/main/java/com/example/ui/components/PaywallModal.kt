@@ -28,8 +28,7 @@ import com.example.ui.theme.GoldSecondary
 fun PaywallModal(
     featureTrigger: String,
     onDismiss: () -> Unit,
-    onSubscribe: (String) -> Unit,
-    onLoginAsAdmin: () -> Unit
+    onSubscribe: (String) -> Unit
 ) {
     var selectedPlan by remember { mutableStateOf("Annual Pro") }
 
@@ -173,18 +172,6 @@ fun PaywallModal(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Admin Fast-Track Button
-            TextButton(
-                onClick = onLoginAsAdmin,
-                modifier = Modifier.testTag("admin_fast_login_btn")
-            ) {
-                Text(
-                    text = "👑 Login as Admin (aqiffarooqui@gmail.com)",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = GoldSecondary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
     }
 }
