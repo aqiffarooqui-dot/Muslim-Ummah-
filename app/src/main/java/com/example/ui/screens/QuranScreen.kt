@@ -237,7 +237,7 @@ fun QuranScreen(
                                 )
                             }
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                imageVector = Icons.Filled.ArrowForward,
                                 contentDescription = "Continue",
                                 tint = EmeraldPrimary
                             )
@@ -765,6 +765,9 @@ private fun SurahReaderView(
                 Spacer(modifier = Modifier.height(14.dp))
             }
         }
+    }
+
+    // Close SurahReaderView content lambda/function before declaring file-level composables.
     }
 
     // Personal Note Dialog
