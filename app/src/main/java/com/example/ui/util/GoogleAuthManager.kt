@@ -11,7 +11,6 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import com.example.data.local.AppUser
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.FirebaseNetworkException
@@ -122,10 +121,10 @@ object GoogleAuthManager {
         } catch (e: NoCredentialException) {
             Result.failure(Exception("No Google account is available. Please add a Google account to this device and try again."))
         } catch (e: GetCredentialException) {
-            Log.w(TAG, "Google Credential Manager error: \${e.message}", e)
+            Log.w(TAG, "Google Credential Manager error: ${e.message}", e)
             Result.failure(getFriendlyAuthErrorMessage(e))
         } catch (e: Exception) {
-            Log.e(TAG, "Explicit Google Sign-In failed: \${e.message}", e)
+            Log.e(TAG, "Explicit Google Sign-In failed: ${e.message}", e)
             Result.failure(getFriendlyAuthErrorMessage(e))
         }
     }
