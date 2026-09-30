@@ -75,7 +75,7 @@ object GoogleAuthManager {
                 planType = "Free",
                 role = "USER",
                 registeredDate = fbUser.metadata?.creationTimestamp ?: System.currentTimeMillis(),
-                notes = if (isAdmin) "Primary Administrator" else "Google Authenticated"
+                notes = "Google Authenticated"
             )
         } catch (e: Throwable) {
             Log.w(TAG, "FirebaseAuth not ready or not initialized: ${e.message}")
@@ -186,7 +186,7 @@ object GoogleAuthManager {
                 planType = "Free",
                 role = "USER",
                 registeredDate = firebaseUser.metadata?.creationTimestamp ?: System.currentTimeMillis(),
-                notes = if (isAdmin) "Primary Administrator" else "Email Authenticated"
+                notes = "Email Authenticated"
             )
             Result.success(user)
         } catch (e: Exception) {
@@ -226,7 +226,7 @@ object GoogleAuthManager {
                 planType = "Free",
                 role = "USER",
                 registeredDate = System.currentTimeMillis(),
-                notes = if (isAdmin) "Primary Administrator" else "Email Registered"
+                notes = "Email Registered"
             )
             Result.success(user)
         } catch (e: Exception) {
