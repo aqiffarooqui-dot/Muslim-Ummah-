@@ -90,15 +90,10 @@ object GoogleAuthManager {
     suspend fun signInWithGoogleCredentialManager(
         context: Context,
         activity: Activity
-    ): Result<AppUser> = withContext(Dispatchers.IO) {
+    ): Result<AppUser> {
         val credentialManager = CredentialManager.create(context)
         val webClientId = getWebClientId(context)
 
-        // Primary: GetSignInWithGoogleOption triggers Google's standard native account picker
-        val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(webClientId)
-            .build()
-
-        // Fallback: GetGoogleIdOption for existing authorized credentials
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
             .setServerClientId(webClientId)
@@ -106,64 +101,51 @@ object GoogleAuthManager {
             .build()
 
         val request = GetCredentialRequest.Builder()
-            .addCredentialOption(signInWithGoogleOption)
             .addCredentialOption(googleIdOption)
             .build()
 
-        try {
+        return try {
             val result = credentialManager.getCredential(activity, request)
             handleCredentialResult(result.credential)
         } catch (e: GetCredentialCancellationException) {
-            Result.failure(Exception("Google Sign-In was cancelled."))
-        } catch (noCred: NoCredentialException) {
-            Log.w(TAG, "NoCredentialException encountered, attempting GetSignInWithGoogleOption explicit fallback: ${noCred.message}")
-            try {
-                val fallbackRequest = GetCredentialRequest.Builder()
-                    .addCredentialOption(signInWithGoogleOption)
-                    .build()
-                val fallbackResult = credentialManager.getCredential(activity, fallbackRequest)
-                handleCredentialResult(fallbackResult.credential)
-            } catch (fallbackEx: Exception) {
-                Log.e(TAG, "CredentialManager explicit fallback error: ${fallbackEx.message}", fallbackEx)
-                Result.failure(getFriendlyAuthErrorMessage(fallbackEx))
-            }
+            Result.failure(Exception("Google Sign-In cancelled by user."))
+        } catch (e: NoCredentialException) {
+            Log.i(TAG, "No Google ID credential available; opening explicit Google sign-in flow.")
+            signInWithGoogleButtonFlow(context, activity, webClientId)
+        } catch (e: GetCredentialException) {
+            Log.w(TAG, "Credential Manager error: ${e.message}", e)
+            signInWithGoogleButtonFlow(context, activity, webClientId)
         } catch (e: Exception) {
-            Log.e(TAG, "CredentialManager error: ${e.message}", e)
+            Log.e(TAG, "Google Sign-In error: ${e.message}", e)
             Result.failure(getFriendlyAuthErrorMessage(e))
         }
     }
 
-    private suspend fun handleCredentialResult(credential: Credential): Result<AppUser> {
-        if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-            val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-            val idToken = googleIdTokenCredential.idToken
-            val email = googleIdTokenCredential.id
-            val name = googleIdTokenCredential.displayName ?: email.substringBefore("@")
-            val photo = googleIdTokenCredential.profilePictureUri?.toString() ?: ""
-
-            // Authenticate with Firebase using Google ID Token
-            val firebaseAuth = FirebaseAuth.getInstance()
-            val authCredential = GoogleAuthProvider.getCredential(idToken, null)
-            val authResult = firebaseAuth.signInWithCredential(authCredential).await()
-            val firebaseUser = authResult.user ?: throw Exception("Firebase user is null after sign-in")
-
-            val user = AppUser(
-                uid = firebaseUser.uid,
-                email = (firebaseUser.email ?: email).trim(),
-                displayName = firebaseUser.displayName ?: name,
-                photoUrl = firebaseUser.photoUrl?.toString() ?: photo,
-                isPremium = false,
-                planType = "Free",
-                role = "USER",
-                registeredDate = firebaseUser.metadata?.creationTimestamp ?: System.currentTimeMillis(),
-                notes = if (isAdmin) "Primary Administrator" else "Google Authenticated"
-            )
-            return Result.success(user)
-        } else {
-            return Result.failure(Exception("Unknown credential format received: ${credential.type}"))
+    /**
+     * Explicit Google button flow used when the normal ID-credential flow has no usable credential.
+     * Credential Manager launches Google official account selection/verification UI.
+     */
+    private suspend fun signInWithGoogleButtonFlow(
+        context: Context,
+        activity: Activity,
+        webClientId: String
+    ): Result<AppUser> {
+        return try {
+            val credentialManager = CredentialManager.create(context)
+            val googleButtonOption = GetSignInWithGoogleOption.Builder(webClientId)
+                .build()
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(googleButtonOption)
+                .build()
+            val result = credentialManager.getCredential(activity, request)
+            handleCredentialResult(result.credential)
+        } catch (e: GetCredentialCancellationException) {
+            Result.failure(Exception("Google Sign-In cancelled by user."))
+        } catch (e: Exception) {
+            Log.e(TAG, "Explicit Google Sign-In failed: ${e.message}", e)
+            Result.failure(getFriendlyAuthErrorMessage(e))
         }
     }
-
     /**
      * Firebase Email and Password Sign In
      */
