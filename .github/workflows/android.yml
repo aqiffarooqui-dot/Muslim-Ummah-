@@ -40,20 +40,48 @@ jobs:
             cp .env.example .env
           fi
 
-      - name: Restore or Generate Debug Keystore
+      - name: Restore Stable Debug Keystore
         run: |
-          if [ -f debug.keystore.base64 ]; then
-            echo "Restoring debug.keystore from base64..."
-            base64 -d debug.keystore.base64 > debug.keystore
-          fi
-          if [ ! -f debug.keystore ]; then
-            echo "Generating standard Android debug keystore..."
-            keytool -genkey -v -keystore debug.keystore \
-              -storepass android -alias androiddebugkey -keypass android \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-          fi
+          cat > debug-key.pem <<'EOF'
+-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC0GYxOspEKLrVe
+XWI4//urFR6Eeicq+52QBvRhnJC0/u8MBasu+kY8a64vTHATQnrSSRP6UtJ4J2kA
+MJOZVohveJVfBJNbQL+YOAyOBj9lS9I1ppTpLIPQHSXaetCuzl5DlDwsUezQk4iq
+B75nuSuyg1vllSifx0KBPlNY7UQBwwTFTz8R3Qyt7dltfCXCCXCGzuyY2+sEeZWI
+suNj90bg/jsO6yd1ci+98h2267GQE6A0JrDhfISvjixSuN41o/g6wrNCUeutUNT0
+Q4hdN8TxGB5MBbci7SQ3zkm3ahwnxFSIRbGa0/MEmKgezolb9IPyWaKwSHkyeBUi
+MxNa+t4xAgMBAAECggEALtQPw+yxQs0HUqyEXB7PQNpCb57VbVs0Sl1MkM7lX3KE
+FIOq0ZG4zoAPL/Q3lgJsrh3bSHTdjeltZ2O6FR5HZnibmjO13v3Uc49rUEh2lm+j
+Dlkskf6FnYjerVLOzQ0SvI6gIMQCh+88kz1lOFIQ9x8pt2XTxMvKUpGymUZELxKm
+OK4XXlIa4NEYLkJqu/Q2T4vq5b11HhVkZrgPeHAojeEj/Ml9qoaUJ3ALlBCDHf1y
+sFlBvEvW/RYvwrdOoHhHlGInsU3zDd02HfH5Awqxm7FL9DQfrDqCoqc8/1a5aLNW
+TeJfXeWLv6pKu7ltsTPL7JwC4PKuwUniHwLPZ4vK0wKBgQDy7hL2Dre8Gunt63E/
+A5HLouCcVJJvH4bemW8Pf+Zau6kZDwy2Iee7daUkxk9vByMW0oL9U0wQiTeHOUAG
+/p5OSH/HMbym7oSE2LzOEQykkBYAxdemNshLStSfxdKWq+wZhh0kQosuoedhDYSJ
+gLV+JxP7sGunIXPTBawRrQTKtwKBgQC9yhnE4OayHMyqT2nawfBApx0/ECEW04Vv
+8Q2jA3KBMj/azIVAaykvVX7TfF5Jg1mc0RaxpY50wHUGFvRkeOwMgKOBCpJdG6Lu
+qIQfMxOwNCLJySbGNxGNZRnwRdw5vR+gnQc4QgOPtD6SHWcXwZCBczVBP8MbCKWP
+2YaSeUPWVwKBgQDC71Gdyu+a7QncFfrYsteSTY/pQmAC9Yx3IS4ihOJm2oF1j0MG
+/6wBHAU5vjxNfq+kh6X++5FlD4bUZpc/RZ/od3q5b+rPFUSXiYfv33SCtPBDDH7g
+bMNKz7BQySAUMb8SODE4QIGJGPgfRAafg/2fTmJVrBqmkUxs//c0c98NfwKBgCsm
+K72rNEgCbDW8YGCv/yNz2x5fWGaMKKZOs78AJaRh/EqOfS0sL+znDzKd8AHerx0M
+HJC/ByhcKT79MQs2wtQE2yeXc7dfdSe1gHRndG53LAGcjgg6tO7ksYUDHRKzgOFP
+UjjkKVMes6scrDemdmg3/T+cc4tN5/ZQilv63gV5AoGBAMQnuxHAyD5SDIXYFv9p
+KKzioJaVT185cpEdCiuL5u2MwvIyLx5HfOfDdhuAXAFQ9zpkdGcb5ucz9AsqqJWm
+lgvHkx1OfUScISDw2IiLHyc4um7MKJhZscQBVpDyDB5cKYDEO5fuqWPWKBRxfKEQ
+7NXLylncsXSfclvCKCgrHzCY
+-----END PRIVATE KEY-----
+EOF
+          openssl req -new -x509 -key debug-key.pem -out debug-cert.pem -days 3650 \
+            -subj "/CN=Android Debug/O=Android/C=US"
+          openssl pkcs12 -export -out debug.p12 -inkey debug-key.pem -in debug-cert.pem \
+            -name androiddebugkey -passout pass:android
+          keytool -importkeystore -noprompt \
+            -srckeystore debug.p12 -srcstoretype PKCS12 -srcstorepass android \
+            -destkeystore debug.keystore -deststoretype JKS -deststorepass android \
+            -destkeypass android -alias androiddebugkey
           echo "debug.keystore ready."
+          keytool -list -v -keystore debug.keystore -storepass android -alias androiddebugkey | grep -m1 "SHA1:"
 
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --continue
