@@ -4,8 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -20,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.subscription.SubscriptionPlanConfig
+import com.example.data.subscription.SubscriptionPricingManager
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldSecondary
 
@@ -30,7 +36,14 @@ fun PaywallModal(
     onDismiss: () -> Unit,
     onSubscribe: (String) -> Unit
 ) {
-    var selectedPlan by remember { mutableStateOf("Annual Pro") }
+    val livePlans by SubscriptionPricingManager.plansState.collectAsState()
+    val availablePlans = remember(livePlans) { livePlans.filter { it.isEnabled } }
+
+    var selectedPlanId by remember(availablePlans) {
+        mutableStateOf(availablePlans.find { it.id == "plan_1_year" }?.id ?: availablePlans.firstOrNull()?.id ?: "plan_1_month")
+    }
+
+    val selectedPlan = availablePlans.find { it.id == selectedPlanId } ?: availablePlans.firstOrNull()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -40,28 +53,29 @@ fun PaywallModal(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 20.dp)
                 .padding(bottom = 36.dp)
+                .verticalScroll(rememberScrollState())
                 .testTag("paywall_modal"),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header Badge
             Surface(
                 shape = CircleShape,
-                color = Color(0xFFFFD54F).copy(alpha = 0.2f),
-                modifier = Modifier.size(60.dp)
+                color = GoldSecondary.copy(alpha = 0.2f),
+                modifier = Modifier.size(56.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.WorkspacePremium,
                         contentDescription = "Premium",
                         tint = GoldSecondary,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = "Muslim Ummah Premium",
@@ -73,20 +87,20 @@ fun PaywallModal(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Unlock advanced tools for your Quran, Hadith and daily worship journey.",
+                text = "Elevate your sacred worship with verified tools, audio downloads and an ad-free experience.",
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             if (featureTrigger.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
-                        text = "Requested: $featureTrigger",
+                        text = "Feature: $featureTrigger",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Bold,
@@ -97,64 +111,59 @@ fun PaywallModal(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 8 Premium Highlights
+            // 7 Real Feature Capabilities
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(14.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                BenefitItem("1. Advanced Quran: Memorization, 5 Reciters, Repeat loops & Notes")
-                BenefitItem("2. Complete Hadith Study Tools: Kutub al-Sittah & multi-translations")
-                BenefitItem("3. Muslim Ummah AI: Source-verified Islamic assistant")
-                BenefitItem("4. Advanced Prayer & Adhan: Makkah, Madinah, Al-Aqsa voices")
-                BenefitItem("5. Offline & Cloud Sync: Reading positions, notes & bookmarks")
-                BenefitItem("6. Premium Themes: Imperial Gold, OLED Dark, Quran Paper")
-                BenefitItem("7. Personal Progress: 'My Journey' dashboard & Khatam milestones")
-                BenefitItem("8. 100% Ad-Free Sacred Experience")
+                BenefitItem("1. 100% Ad-Free Sacred Atmosphere")
+                BenefitItem("2. Muslim Ummah AI: Source-verified Islamic assistant with citations")
+                BenefitItem("3. Advanced Quran Tools: Memorization mode, Khatam planner & Ayah repeat loops")
+                BenefitItem("4. Holy Sanctuary Recitations: Mishary, Sudais, Shuraim & Al-Ghamdi")
+                BenefitItem("5. Complete Hadith Library: Kutub al-Sittah & cross-language search")
+                BenefitItem("6. Cloud Sync: Reading positions, notes and bookmarks across devices")
+                BenefitItem("7. Premium Themes: Imperial Gold, Sacred Green, OLED Dark & Paper White")
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(
+                text = "Select a Subscription Plan",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.Start)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // The 5 Official Plans in a Horizontal Selector
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(availablePlans, key = { it.id }) { plan ->
+                    val isSelected = selectedPlanId == plan.id
+                    PlanSelectionCard(
+                        plan = plan,
+                        isSelected = isSelected,
+                        onClick = { selectedPlanId = plan.id }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Pricing Plans
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                PricingCard(
-                    title = "Monthly",
-                    price = "₹99/mo",
-                    period = "Billed monthly",
-                    isSelected = selectedPlan == "Monthly Pro",
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedPlan = "Monthly Pro" }
-                )
-                PricingCard(
-                    title = "Annual Pro",
-                    badge = "SAVE 58%",
-                    price = "₹499/yr",
-                    period = "₹41/month",
-                    isSelected = selectedPlan == "Annual Pro",
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedPlan = "Annual Pro" }
-                )
-                PricingCard(
-                    title = "Lifetime",
-                    badge = "BEST VALUE",
-                    price = "₹999",
-                    period = "Pay once",
-                    isSelected = selectedPlan == "Lifetime VIP",
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedPlan = "Lifetime VIP" }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Subscribe CTA
+            // Subscribe Button
             Button(
-                onClick = { onSubscribe(selectedPlan) },
+                onClick = {
+                    if (selectedPlan != null) {
+                        onSubscribe(selectedPlan.id)
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
@@ -163,7 +172,7 @@ fun PaywallModal(
                 colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
             ) {
                 Text(
-                    text = "Activate $selectedPlan",
+                    text = "Subscribe for ${selectedPlan?.formattedPrice ?: "₹129"}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -179,8 +188,7 @@ fun PaywallModal(
 @Composable
 private fun BenefitItem(text: String) {
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(vertical = 3.dp)
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Default.CheckCircle,
@@ -198,69 +206,71 @@ private fun BenefitItem(text: String) {
 }
 
 @Composable
-private fun PricingCard(
-    title: String,
-    price: String,
-    period: String,
-    badge: String? = null,
+private fun PlanSelectionCard(
+    plan: SubscriptionPlanConfig,
     isSelected: Boolean,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Card(
-        modifier = modifier
+        modifier = Modifier
+            .width(130.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) EmeraldPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                width = if (isSelected) 2.5.dp else 1.dp,
+                color = if (isSelected) EmeraldPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(16.dp)
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (badge != null) {
+            if (plan.badge != null) {
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = GoldSecondary
                 ) {
                     Text(
-                        text = badge,
+                        text = plan.badge,
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
             } else {
                 Spacer(modifier = Modifier.height(18.dp))
             }
 
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
-                text = title,
+                text = plan.name,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
+
             Spacer(modifier = Modifier.height(4.dp))
+
             Text(
-                text = price,
-                style = MaterialTheme.typography.bodyMedium,
+                text = plan.formattedPrice,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = EmeraldPrimary
             )
+
             Text(
-                text = period,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = plan.periodDescription,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
         }
     }

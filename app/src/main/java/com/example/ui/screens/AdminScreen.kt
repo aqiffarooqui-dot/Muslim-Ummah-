@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -20,14 +21,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.AppUser
+import com.example.data.subscription.SubscriptionPlanConfig
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldSecondary
 import com.example.ui.viewmodel.MuslimUiState
-import com.example.ui.viewmodel.MuslimViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,28 +39,28 @@ import java.util.Locale
 fun AdminScreen(
     uiState: MuslimUiState,
     allUsers: List<AppUser>,
-    onUpdateSubscription: (email: String, isPremium: Boolean, planType: String, durationDays: Int?) -> Unit,
+    subscriptionPlans: List<SubscriptionPlanConfig>,
+    onUpdateSubscription: (email: String, isPremium: Boolean, planType: String, durationDays: Int?, expiresAtOverride: Long?) -> Unit,
     onDeleteUser: (email: String) -> Unit,
     onAddNewUser: (email: String, displayName: String, isPremium: Boolean, planType: String) -> Unit,
+    onPublishPricing: (List<SubscriptionPlanConfig>) -> Unit,
+    onCalculateSuggestions: (basePlanId: String, basePrice: Int) -> Map<String, Int>,
     onSearchChange: (String) -> Unit,
     onFilterPlanChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showAddUserDialog by remember { mutableStateOf(false) }
     var selectedUserForEdit by remember { mutableStateOf<AppUser?>(null) }
-    var activeTab by remember { mutableStateOf("Users") } // "Users" or "Features"
+    var activeTab by remember { mutableStateOf("Users") } // "Users", "Pricing", "Features"
+
+    // Editable state for pricing
+    var editablePlans by remember(subscriptionPlans) { mutableStateOf(subscriptionPlans) }
+    var calculatorBasePlanId by remember { mutableStateOf("plan_7_days") }
+    var calculatorBasePriceInput by remember { mutableStateOf("49") }
 
     val totalUsers = allUsers.size
-    val premiumUsersCount = allUsers.count { it.isPremium }
+    val premiumUsersCount = allUsers.count { it.isPremium && (it.expiresAt == null || it.expiresAt >= System.currentTimeMillis()) }
     val freeUsersCount = totalUsers - premiumUsersCount
-    val estimatedMRR = allUsers.sumOf {
-        when (it.planType) {
-            "Monthly Pro" -> 99.0
-            "Annual Pro" -> 41.5
-            "Lifetime VIP" -> 83.0
-            else -> 0.0
-        }
-    }
 
     val filteredUsers = remember(allUsers, uiState.adminUserSearchQuery, uiState.adminFilterPlan) {
         val q = uiState.adminUserSearchQuery.trim().lowercase()
@@ -67,10 +69,11 @@ fun AdminScreen(
                     user.email.lowercase().contains(q) ||
                     user.displayName.lowercase().contains(q)
 
+            val isUserActivePrem = user.isPremium && (user.expiresAt == null || user.expiresAt >= System.currentTimeMillis())
             val matchesPlan = when (uiState.adminFilterPlan) {
-                "Premium" -> user.isPremium
-                "Free" -> !user.isPremium
-                "Lifetime" -> user.planType == "Lifetime VIP"
+                "Premium" -> isUserActivePrem
+                "Free" -> !isUserActivePrem
+                "Expired" -> user.isPremium && user.expiresAt != null && user.expiresAt < System.currentTimeMillis()
                 else -> true
             }
             matchesQuery && matchesPlan
@@ -189,9 +192,9 @@ fun AdminScreen(
                     modifier = Modifier.weight(1f)
                 )
                 MetricCard(
-                    title = "Est. MRR",
-                    value = "₹${String.format(Locale.US, "%.0f", estimatedMRR)}",
-                    icon = Icons.Default.MonetizationOn,
+                    title = "Active Plans",
+                    value = "${subscriptionPlans.count { it.isEnabled }} Plans",
+                    icon = Icons.Default.Payments,
                     color = Color(0xFF2E7D32),
                     modifier = Modifier.weight(1f)
                 )
@@ -199,22 +202,29 @@ fun AdminScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Tab Selector: User Management vs Premium Features
+            // 3-Tab Selector: Users, Pricing, Features
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
                     selected = activeTab == "Users",
                     onClick = { activeTab = "Users" },
-                    label = { Text("User Management ($totalUsers)") },
+                    label = { Text("Users ($totalUsers)") },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(1f)
                 )
                 FilterChip(
+                    selected = activeTab == "Pricing",
+                    onClick = { activeTab = "Pricing" },
+                    label = { Text("Pricing (5 Plans)") },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1.1f)
+                )
+                FilterChip(
                     selected = activeTab == "Features",
                     onClick = { activeTab = "Features" },
-                    label = { Text("Premium Roadmap") },
+                    label = { Text("Capabilities") },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(1f)
                 )
@@ -223,6 +233,9 @@ fun AdminScreen(
             Spacer(modifier = Modifier.height(14.dp))
         }
 
+        // ==========================================
+        // TAB 1: USERS & PREMIUM MANAGEMENT
+        // ==========================================
         if (activeTab == "Users") {
             item {
                 Row(
@@ -231,7 +244,7 @@ fun AdminScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Registered App Users",
+                        text = "App Users & Subscriptions",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -249,205 +262,437 @@ fun AdminScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Search & Filter
+                // Search Bar
                 OutlinedTextField(
                     value = uiState.adminUserSearchQuery,
                     onValueChange = onSearchChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("admin_user_search"),
+                        .testTag("admin_search_input"),
                     placeholder = { Text("Search by email or name...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                    trailingIcon = {
+                        if (uiState.adminUserSearchQuery.isNotEmpty()) {
+                            IconButton(onClick = { onSearchChange("") }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp)
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                // Filter Chips
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(listOf("All", "Premium", "Free", "Lifetime")) { plan ->
-                        val isSelected = uiState.adminFilterPlan == plan
+                    val filterOptions = listOf("All", "Premium", "Free", "Expired")
+                    items(filterOptions) { filter ->
                         FilterChip(
-                            selected = isSelected,
-                            onClick = { onFilterPlanChange(plan) },
-                            label = { Text(plan) },
-                            shape = RoundedCornerShape(10.dp)
+                            selected = uiState.adminFilterPlan == filter,
+                            onClick = { onFilterPlanChange(filter) },
+                            label = { Text(filter) }
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
-            items(filteredUsers, key = { it.email }) { user ->
-                AdminUserRow(
-                    user = user,
-                    onEditClick = { selectedUserForEdit = user },
-                    onQuickToggle = {
-                        val newPremium = !user.isPremium
-                        val newPlan = if (newPremium) "Annual Pro" else "Free"
-                        val duration = if (newPremium) 365 else null
-                        onUpdateSubscription(user.email, newPremium, newPlan, duration)
+            if (filteredUsers.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.PersonSearch, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("No users found matching query", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text("Try adjusting your search or filter criteria", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                }
+            } else {
+                items(filteredUsers, key = { it.email }) { user ->
+                    AdminUserCard(
+                        user = user,
+                        onManageClick = { selectedUserForEdit = user },
+                        onQuickToggle = {
+                            val willBePremium = !user.isPremium
+                            val plan = if (willBePremium) "1 Month" else "Free"
+                            val duration = if (willBePremium) 30 else null
+                            onUpdateSubscription(user.email, willBePremium, plan, duration, null)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
             }
-        } else {
-            // Premium Features Catalog & Roadmap
-            item {
-                Text(
-                    text = "Active & Future Premium Features",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Features automatically unlocked for subscribers and admin (${uiState.currentUser?.email})",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-            }
+        }
 
-            items(MuslimViewModel.PREMIUM_FEATURES_CATALOG) { feature ->
+        // ==========================================
+        // TAB 2: SUBSCRIPTION PRICING MANAGEMENT & CALCULATOR
+        // ==========================================
+        if (activeTab == "Pricing") {
+            item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                    border = CardDefaults.outlinedCardBorder()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Calculate, contentDescription = null, tint = EmeraldPrimary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Smart Pricing Calculator",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Set a base plan price. The calculator generates sensible proportional price suggestions for the other plans with progressive discounts.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = calculatorBasePriceInput,
+                                onValueChange = { calculatorBasePriceInput = it.filter { ch -> ch.isDigit() } },
+                                label = { Text("7 Days Base (₹)") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            Button(
+                                onClick = {
+                                    val basePrice = calculatorBasePriceInput.toIntOrNull() ?: 49
+                                    val suggestions = onCalculateSuggestions(calculatorBasePlanId, basePrice)
+                                    if (suggestions.isNotEmpty()) {
+                                        editablePlans = editablePlans.map { plan ->
+                                            val suggested = suggestions[plan.id]
+                                            if (suggested != null) plan.copy(priceInr = suggested) else plan
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.height(54.dp)
+                            ) {
+                                Icon(Icons.Default.AutoFixHigh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Calculate")
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Official Plans (${editablePlans.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Button(
+                        onClick = {
+                            onPublishPricing(editablePlans)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Publish to Cloud")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            items(editablePlans, key = { it.id }) { plan ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = CardDefaults.outlinedCardBorder()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = feature.title,
-                                    tint = EmeraldPrimary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = feature.title,
+                                    text = plan.name,
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.secondaryContainer
-                                ) {
-                                    Text(
-                                        text = feature.status,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
+                                if (plan.badge != null) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = GoldSecondary.copy(alpha = 0.2f)
+                                    ) {
+                                        Text(
+                                            text = plan.badge,
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                            color = GoldSecondary,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                        )
+                                    }
                                 }
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = feature.description,
+                                text = "Duration: ${plan.durationDays} days • ${plan.periodDescription}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            var priceText by remember(plan.priceInr) { mutableStateOf(plan.priceInr.toString()) }
+                            OutlinedTextField(
+                                value = priceText,
+                                onValueChange = {
+                                    priceText = it.filter { ch -> ch.isDigit() }
+                                    val newPrice = priceText.toIntOrNull() ?: plan.priceInr
+                                    editablePlans = editablePlans.map { p ->
+                                        if (p.id == plan.id) p.copy(priceInr = newPrice) else p
+                                    }
+                                },
+                                prefix = { Text("₹") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                modifier = Modifier.width(110.dp)
+                            )
+                        }
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        // ==========================================
+        // TAB 3: PREMIUM ROADMAP & CAPABILITIES
+        // ==========================================
+        if (activeTab == "Features") {
+            item {
+                Text(
+                    text = "Feature Capability Matrix & Gating",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(10.dp))
+
+                val capabilities = listOf(
+                    "Ad-Free Sacred Experience" to "Free users see clean banner, Premium is 100% ad-free",
+                    "Muslim Ummah AI Assistant" to "Free: 3 daily queries • Premium: 100 daily verified citations",
+                    "Advanced Quran Tools" to "Memorization, Khatam Planner, Reciter selection, Ayah repeat loops",
+                    "Complete Hadith Study Suite" to "Kutub al-Sittah collection, search by narrator & cross-translations",
+                    "Advanced Adhan & Makkah Audio" to "Holy Sanctuary reciters and high-fidelity audio downloads",
+                    "Cloud Sync & Offline Storage" to "Cross-device sync for bookmarks, reading positions & notes",
+                    "Custom Themes" to "Imperial Gold, Sacred Green, OLED Dark & Paper White"
+                )
+
+                capabilities.forEach { (title, desc) ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = EmeraldPrimary, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
         }
     }
 
-    // Edit User Dialog
-    selectedUserForEdit?.let { user ->
+    // ==========================================
+    // DIALOG: USER PREMIUM MANAGEMENT
+    // ==========================================
+    if (selectedUserForEdit != null) {
+        val user = selectedUserForEdit!!
+        val isNowExpired = user.expiresAt != null && user.expiresAt < System.currentTimeMillis()
+        val isActive = user.isPremium && !isNowExpired
+
         AlertDialog(
             onDismissRequest = { selectedUserForEdit = null },
             title = {
-                Column {
-                    Text(text = "Manage ${user.displayName}", fontWeight = FontWeight.Bold)
-                    Text(text = user.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = GoldSecondary)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Premium Management", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // User Overview Card
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(text = user.displayName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(text = user.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Status: ",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                                Text(
+                                    text = if (isActive) "ACTIVE PREMIUM" else if (isNowExpired) "EXPIRED" else "FREE MEMBER",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isActive) EmeraldPrimary else if (isNowExpired) MaterialTheme.colorScheme.error else Color.Gray
+                                )
+                            }
+                            if (user.expiresAt != null) {
+                                val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.US)
+                                val expiryFormatted = sdf.format(Date(user.expiresAt))
+                                Text(
+                                    text = "Expiry: $expiryFormatted",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
                     Text(
-                        text = "Current Plan: ${user.planType} (${if (user.isPremium) "Premium" else "Free"})",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Change Subscription Tier:",
+                        text = "Grant Official Subscription Plan:",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
 
+                    // 5 Official Plans
                     OutlinedButton(
                         onClick = {
-                            onUpdateSubscription(user.email, true, "Lifetime VIP", null)
+                            onUpdateSubscription(user.email, true, "7 Days", 7, null)
                             selectedUserForEdit = null
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Grant Lifetime VIP (Permanent)")
+                        Text("Grant 7 Days (₹49)")
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
 
                     OutlinedButton(
                         onClick = {
-                            onUpdateSubscription(user.email, true, "Annual Pro", 365)
+                            onUpdateSubscription(user.email, true, "1 Month", 30, null)
                             selectedUserForEdit = null
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Grant Annual Pro (1 Year)")
+                        Text("Grant 1 Month (₹129)")
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
 
                     OutlinedButton(
                         onClick = {
-                            onUpdateSubscription(user.email, true, "Monthly Pro", 30)
+                            onUpdateSubscription(user.email, true, "3 Months", 90, null)
                             selectedUserForEdit = null
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Grant Monthly Pro (30 Days)")
+                        Text("Grant 3 Months (₹299)")
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
 
                     OutlinedButton(
                         onClick = {
-                            onUpdateSubscription(user.email, false, "Free", null)
+                            onUpdateSubscription(user.email, true, "9 Months", 270, null)
+                            selectedUserForEdit = null
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Grant 9 Months (₹649)")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            onUpdateSubscription(user.email, true, "1 Year", 365, null)
+                            selectedUserForEdit = null
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Grant 1 Year (₹799)")
+                    }
+
+                    // Extend if active
+                    if (isActive && user.expiresAt != null) {
+                        Button(
+                            onClick = {
+                                val newExpiry = user.expiresAt + (30L * 24 * 3600 * 1000)
+                                onUpdateSubscription(user.email, true, user.planType, null, newExpiry)
+                                selectedUserForEdit = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.MoreTime, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Extend by +30 Days")
+                        }
+                    }
+
+                    // Revoke / Downgrade to Free
+                    OutlinedButton(
+                        onClick = {
+                            onUpdateSubscription(user.email, false, "Free", null, null)
                             selectedUserForEdit = null
                         },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Downgrade to Free")
+                        Icon(Icons.Default.Cancel, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Revoke Premium (Set to Free)")
                     }
 
                     if (user.email != "aqiffarooqui@gmail.com") {
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Button(
                             onClick = {
                                 onDeleteUser(user.email)
@@ -473,7 +718,7 @@ fun AdminScreen(
     if (showAddUserDialog) {
         var emailInput by remember { mutableStateOf("") }
         var nameInput by remember { mutableStateOf("") }
-        var selectedPlan by remember { mutableStateOf("Monthly Pro") }
+        var selectedPlan by remember { mutableStateOf("1 Month") }
 
         AlertDialog(
             onDismissRequest = { showAddUserDialog = false },
@@ -497,12 +742,13 @@ fun AdminScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(text = "Initial Subscription:", style = MaterialTheme.typography.labelMedium)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        listOf("Free", "Monthly Pro", "Lifetime VIP").forEach { plan ->
+                        val plans = listOf("Free", "7 Days", "1 Month", "3 Months", "1 Year")
+                        items(plans) { plan ->
                             FilterChip(
                                 selected = selectedPlan == plan,
                                 onClick = { selectedPlan = plan },
@@ -573,15 +819,18 @@ private fun MetricCard(
 }
 
 @Composable
-private fun AdminUserRow(
+private fun AdminUserCard(
     user: AppUser,
-    onEditClick: () -> Unit,
+    onManageClick: () -> Unit,
     onQuickToggle: () -> Unit
 ) {
+    val isNowExpired = user.expiresAt != null && user.expiresAt < System.currentTimeMillis()
+    val isActivePrem = user.isPremium && !isNowExpired
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onEditClick)
+            .clickable(onClick = onManageClick)
             .testTag("admin_user_${user.email}"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -600,15 +849,15 @@ private fun AdminUserRow(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = if (user.isPremium) GoldSecondary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.size(40.dp)
+                    color = if (isActivePrem) GoldSecondary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.size(42.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text = if (user.role == "ADMIN") "👑" else user.displayName.take(1).uppercase(),
+                            text = if (user.email == "aqiffarooqui@gmail.com") "👑" else user.displayName.take(1).uppercase(),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (user.isPremium) GoldSecondary else MaterialTheme.colorScheme.primary
+                            color = if (isActivePrem) GoldSecondary else MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -620,20 +869,22 @@ private fun AdminUserRow(
                         Text(
                             text = user.displayName,
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         if (user.role == "ADMIN") {
                             Spacer(modifier = Modifier.width(6.dp))
                             Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = EmeraldPrimary
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFFFFD54F)
                             ) {
                                 Text(
                                     text = "ADMIN",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1B3D34),
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                 )
                             }
                         }
@@ -646,30 +897,46 @@ private fun AdminUserRow(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isActivePrem) EmeraldPrimary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                text = if (isActivePrem) user.planType else if (isNowExpired) "Expired" else "Free",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = if (isActivePrem) EmeraldPrimary else if (isNowExpired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+
+                        if (user.expiresAt != null) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            val sdf = SimpleDateFormat("dd MMM yyyy", Locale.US)
+                            Text(
+                                text = if (isNowExpired) "Expired on ${sdf.format(Date(user.expiresAt))}" else "Until ${sdf.format(Date(user.expiresAt))}",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (user.isPremium) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Text(
-                        text = user.planType,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (user.isPremium) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = onEditClick,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Edit User")
-                }
+            IconButton(
+                onClick = onManageClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Manage",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }

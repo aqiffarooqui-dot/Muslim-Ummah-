@@ -381,9 +381,144 @@ object FirebaseSyncManager {
                 }
             }
 
+            // 6. Entitlement & Subscription Sync
+            syncUserEntitlementFromCloud(uid, repository)
+
             Log.d(TAG, "Completed bi-directional cloud synchronization successfully")
         } catch (e: Exception) {
             Log.w(TAG, "Bi-directional sync completed with offline or partial status: ${e.message}")
+        }
+    }
+
+    /**
+     * Pulls the user's current cloud subscription & entitlement from Firestore.
+     * Evaluates expiry and updates local database and SubscriptionManager.
+     */
+    suspend fun syncUserEntitlementFromCloud(uid: String, repository: MuslimRepository) = withContext(Dispatchers.IO) {
+        if (uid.isBlank()) return@withContext
+        try {
+            val userDoc = firestore.collection("users").document(uid).get().await()
+            if (userDoc.exists()) {
+                val email = userDoc.getString("email") ?: ""
+                val isPremiumCloud = userDoc.getBoolean("isPremium") ?: false
+                val planTypeCloud = userDoc.getString("planType") ?: "Free"
+                val expiresAtCloud = userDoc.getLong("expiresAt")
+                val now = System.currentTimeMillis()
+
+                val isStillActive = isPremiumCloud && (expiresAtCloud == null || expiresAtCloud >= now)
+                val finalPlan = if (isStillActive) planTypeCloud else "Free"
+
+                // Update local Room user record
+                val localUser = repository.getUserByEmail(email)
+                if (localUser != null) {
+                    repository.updateSubscription(
+                        email = email,
+                        isPremium = isStillActive,
+                        planType = finalPlan,
+                        expiresAt = if (isStillActive) expiresAtCloud else null
+                    )
+                }
+
+                // If expired in cloud, update Firestore back to clean state
+                if (isPremiumCloud && expiresAtCloud != null && expiresAtCloud < now) {
+                    firestore.collection("users").document(uid).update(
+                        mapOf(
+                            "isPremium" to false,
+                            "planType" to "Free",
+                            "expiredAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                }
+
+                // Update runtime SubscriptionManager
+                com.example.data.subscription.SubscriptionManager.updateEntitlementForUser(
+                    email = email,
+                    isPremium = isStillActive,
+                    planType = finalPlan,
+                    expiresAt = if (isStillActive) expiresAtCloud else null
+                )
+                Log.d(TAG, "Synced cloud entitlement for $email: isPremium=$isStillActive, plan=$finalPlan")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not fetch cloud entitlement: ${e.message}")
+        }
+    }
+
+    /**
+     * Admin Panel: Activates, extends, or revokes a user's subscription in Firestore.
+     * Writes to both users/{uid} and entitlements/{uid} so state persists across devices and app restarts.
+     */
+    suspend fun grantOrUpdateUserSubscriptionByAdmin(
+        adminEmail: String,
+        targetEmail: String,
+        targetUid: String?,
+        isPremium: Boolean,
+        planType: String,
+        durationDays: Int?,
+        expiresAtOverride: Long? = null
+    ): Result<Long?> = withContext(Dispatchers.IO) {
+        try {
+            val cleanEmail = targetEmail.trim()
+            val now = System.currentTimeMillis()
+            val expiresAt: Long? = when {
+                !isPremium -> null
+                expiresAtOverride != null -> expiresAtOverride
+                durationDays != null -> now + (durationDays.toLong() * 24 * 3600 * 1000)
+                else -> null
+            }
+
+            // Determine UID: use targetUid if provided or search users collection by email
+            var resolvedUid = targetUid
+            if (resolvedUid.isNullOrBlank()) {
+                val querySnap = firestore.collection("users")
+                    .whereEqualTo("email", cleanEmail)
+                    .limit(1)
+                    .get()
+                    .await()
+                if (!querySnap.isEmpty) {
+                    resolvedUid = querySnap.documents[0].id
+                }
+            }
+
+            val userPayload = hashMapOf<String, Any?>(
+                "isPremium" to isPremium,
+                "planType" to planType,
+                "expiresAt" to expiresAt,
+                "entitlementSource" to "ADMIN_GRANT",
+                "adminGrantedBy" to adminEmail,
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+
+            if (!resolvedUid.isNullOrBlank()) {
+                firestore.collection("users").document(resolvedUid)
+                    .set(userPayload, SetOptions.merge()).await()
+
+                val entitlementPayload = hashMapOf<String, Any?>(
+                    "userId" to resolvedUid,
+                    "email" to cleanEmail,
+                    "tier" to com.example.data.subscription.SubscriptionManager.mapPlanNameToTier(planType).name,
+                    "isActive" to isPremium,
+                    "source" to "ADMIN_GRANT",
+                    "planName" to planType,
+                    "startDateMillis" to now,
+                    "expiresAtMillis" to expiresAt,
+                    "grantedBy" to adminEmail,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+                firestore.collection("entitlements").document(resolvedUid)
+                    .set(entitlementPayload, SetOptions.merge()).await()
+            } else {
+                // If UID is unknown, create placeholder document under email key
+                val safeEmailKey = cleanEmail.replace(".", "_").replace("@", "_")
+                firestore.collection("entitlements").document(safeEmailKey)
+                    .set(userPayload, SetOptions.merge()).await()
+            }
+
+            Log.d(TAG, "Admin ($adminEmail) updated subscription for $cleanEmail -> $planType (expiresAt=$expiresAt)")
+            Result.success(expiresAt)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed admin subscription update: ${e.message}", e)
+            Result.failure(e)
         }
     }
 }

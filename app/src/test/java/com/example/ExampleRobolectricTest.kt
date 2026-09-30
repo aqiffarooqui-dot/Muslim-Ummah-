@@ -115,12 +115,37 @@ class ExampleRobolectricTest {
 
     @Test
     fun `subscription manager handles admin entitlement correctly`() {
-        SubscriptionManager.updateEntitlementForUser("aqiffarooqui@gmail.com", true, "Lifetime VIP", null)
+        SubscriptionManager.updateEntitlementForUser("aqiffarooqui@gmail.com", true, "Super Admin Access", null)
         val entitlement = SubscriptionManager.entitlementFlow.value
         assertTrue(entitlement.isPremiumActive)
         assertTrue(entitlement.isAdFree)
         assertTrue(entitlement.canAccessAiAssistant)
         assertTrue(entitlement.canAccessOfflineDownloads)
+    }
+
+    @Test
+    fun `subscription manager initializes as FREE by default and enforces expiry`() {
+        val freeEntitlement = SubscriptionManager.createFreeEntitlement()
+        assertEquals(com.example.data.subscription.SubscriptionTier.FREE, freeEntitlement.tier)
+        org.junit.Assert.assertFalse(freeEntitlement.isPremiumActive)
+
+        // Expired subscription test
+        val pastTimestamp = System.currentTimeMillis() - 10000L
+        SubscriptionManager.updateEntitlementForUser("regular@user.com", true, "1 Month", pastTimestamp)
+        val expiredEntitlement = SubscriptionManager.entitlementFlow.value
+        org.junit.Assert.assertFalse(expiredEntitlement.isPremiumActive)
+        assertEquals(com.example.data.subscription.SubscriptionTier.FREE, expiredEntitlement.tier)
+    }
+
+    @Test
+    fun `pricing calculator generates progressive proportional suggestions for 5 plans`() {
+        val suggestions = com.example.data.subscription.SubscriptionPricingManager.calculateSuggestedPrices("plan_7_days", 49)
+        assertEquals(5, suggestions.size)
+        assertEquals(49, suggestions["plan_7_days"])
+        assertTrue((suggestions["plan_1_month"] ?: 0) in 100..200)
+        assertTrue((suggestions["plan_3_months"] ?: 0) in 250..400)
+        assertTrue((suggestions["plan_9_months"] ?: 0) in 550..750)
+        assertTrue((suggestions["plan_1_year"] ?: 0) in 700..900)
     }
 
     @Test

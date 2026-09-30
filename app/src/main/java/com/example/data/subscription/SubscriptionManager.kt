@@ -4,20 +4,39 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class EntitlementState {
+/**
+ * Clean Subscription Tier Architecture for Muslim Ummah
+ */
+enum class SubscriptionTier {
     FREE,
-    PREMIUM,
-    PREMIUM_TRIAL,
-    EXPIRED,
-    CANCELLED_ACTIVE,
-    PENDING
+    SEVEN_DAY,
+    MONTHLY,
+    QUARTERLY,
+    NINE_MONTH,
+    YEARLY,
+    ADMIN_GRANTED
 }
 
+enum class EntitlementSource {
+    DEFAULT,
+    GOOGLE_PLAY,
+    ADMIN_GRANT
+}
+
+/**
+ * Comprehensive Entitlement Model representing user's current subscription rights
+ */
 data class PremiumEntitlement(
-    val state: EntitlementState = EntitlementState.FREE,
+    val tier: SubscriptionTier = SubscriptionTier.FREE,
+    val isActive: Boolean = false,
+    val source: EntitlementSource = EntitlementSource.DEFAULT,
     val planId: String = "free",
     val planName: String = "Free Member",
+    val startDateMillis: Long? = null,
     val expiresAtMillis: Long? = null,
+    val isCancelled: Boolean = false,
+    val adminNotes: String? = null,
+    // Capability flags
     val isAdFree: Boolean = false,
     val canAccessAiAssistant: Boolean = false,
     val canAccessOfflineDownloads: Boolean = false,
@@ -26,118 +45,233 @@ data class PremiumEntitlement(
     val canAccessKhatamPlanner: Boolean = false,
     val canAccessMemorization: Boolean = false,
     val canAccessThemes: Boolean = false,
-    val dailyAiQueriesLimit: Int = 5,
+    val canAccessRuqyahAudio: Boolean = false,
+    val canAccessAdvancedQada: Boolean = false,
+    val dailyAiQueriesLimit: Int = 3,
     val dailyAiQueriesUsed: Int = 0
 ) {
+    /**
+     * Calculates whether the user currently has an active Premium session.
+     * Automatically returns false if the subscription has passed its expiry date.
+     */
     val isPremiumActive: Boolean
-        get() = state == EntitlementState.PREMIUM ||
-                state == EntitlementState.PREMIUM_TRIAL ||
-                state == EntitlementState.CANCELLED_ACTIVE
+        get() {
+            if (!isActive) return false
+            if (tier == SubscriptionTier.FREE) return false
+            val expiry = expiresAtMillis
+            if (expiry != null && expiry < System.currentTimeMillis()) {
+                return false
+            }
+            return true
+        }
+
+    val isExpired: Boolean
+        get() = expiresAtMillis != null && expiresAtMillis < System.currentTimeMillis()
 }
 
-data class SubscriptionProduct(
+/**
+ * Representation of an active subscription plan product
+ */
+data class SubscriptionPlan(
     val id: String,
     val title: String,
+    val durationDays: Int,
+    val priceInr: Int,
     val priceFormatted: String,
-    val period: String,
+    val periodDescription: String,
     val badge: String? = null,
-    val trialDays: Int = 0
+    val isEnabled: Boolean = true
 )
 
 interface SubscriptionRepository {
     val entitlementFlow: StateFlow<PremiumEntitlement>
     suspend fun checkEntitlements(): PremiumEntitlement
-    suspend fun purchasePlan(productId: String): Result<PremiumEntitlement>
+    suspend fun purchasePlan(planId: String): Result<PremiumEntitlement>
     suspend fun restorePurchases(): Result<PremiumEntitlement>
     suspend fun cancelSubscription(): Result<Unit>
 }
 
 object SubscriptionManager : SubscriptionRepository {
 
-    // Default configuration for Google Play Billing products
-    val AVAILABLE_PRODUCTS = listOf(
-        SubscriptionProduct(
-            id = "muslim_ummah_pro_monthly",
-            title = "Monthly Pro",
-            priceFormatted = "₹99/month",
-            period = "Billed monthly",
-            trialDays = 7
+    // Default configuration for the 5 official Muslim Ummah plans
+    val DEFAULT_PLANS = listOf(
+        SubscriptionPlan(
+            id = "plan_7_days",
+            title = "7 Days",
+            durationDays = 7,
+            priceInr = 49,
+            priceFormatted = "₹49",
+            periodDescription = "7 days access"
         ),
-        SubscriptionProduct(
-            id = "muslim_ummah_pro_annual",
-            title = "Annual Pro",
-            priceFormatted = "₹499/year",
-            period = "₹41/month • Save 58%",
-            badge = "POPULAR",
-            trialDays = 14
+        SubscriptionPlan(
+            id = "plan_1_month",
+            title = "1 Month",
+            durationDays = 30,
+            priceInr = 129,
+            priceFormatted = "₹129",
+            periodDescription = "Billed monthly"
         ),
-        SubscriptionProduct(
-            id = "muslim_ummah_vip_lifetime",
-            title = "Lifetime VIP",
-            priceFormatted = "₹999",
-            period = "One-time purchase",
+        SubscriptionPlan(
+            id = "plan_3_months",
+            title = "3 Months",
+            durationDays = 90,
+            priceInr = 299,
+            priceFormatted = "₹299",
+            periodDescription = "Save 23% • ₹99/mo",
+            badge = "POPULAR"
+        ),
+        SubscriptionPlan(
+            id = "plan_9_months",
+            title = "9 Months",
+            durationDays = 270,
+            priceInr = 649,
+            priceFormatted = "₹649",
+            periodDescription = "Save 44% • ₹72/mo"
+        ),
+        SubscriptionPlan(
+            id = "plan_1_year",
+            title = "1 Year",
+            durationDays = 365,
+            priceInr = 799,
+            priceFormatted = "₹799",
+            periodDescription = "Save 48% • ₹66/mo",
             badge = "BEST VALUE"
         )
     )
 
-    private val _entitlementFlow = MutableStateFlow(
-        createPremiumEntitlement(
-            planId = "lifetime_vip",
-            planName = "Lifetime VIP (Admin)",
-            expiresAt = null
-        )
-    )
+    // DEFAULT ENTITLEMENT MUST ALWAYS INITIALIZE AS FREE
+    private val _entitlementFlow = MutableStateFlow(createFreeEntitlement())
     override val entitlementFlow: StateFlow<PremiumEntitlement> = _entitlementFlow.asStateFlow()
 
-    fun updateEntitlementForUser(email: String, isPremium: Boolean, planType: String, expiresAt: Long?) {
+    fun createFreeEntitlement(): PremiumEntitlement {
+        return PremiumEntitlement(
+            tier = SubscriptionTier.FREE,
+            isActive = false,
+            source = EntitlementSource.DEFAULT,
+            planId = "free",
+            planName = "Free Member",
+            expiresAtMillis = null,
+            isAdFree = false,
+            canAccessAiAssistant = true, // Free trial allowance
+            canAccessOfflineDownloads = false,
+            canAccessAdvancedReciters = false,
+            canAccessHadithStudyTools = false,
+            canAccessKhatamPlanner = false,
+            canAccessMemorization = false,
+            canAccessThemes = false,
+            canAccessRuqyahAudio = false,
+            canAccessAdvancedQada = false,
+            dailyAiQueriesLimit = 3
+        )
+    }
+
+    fun createActiveEntitlement(
+        tier: SubscriptionTier,
+        planId: String,
+        planName: String,
+        source: EntitlementSource,
+        expiresAt: Long?,
+        adminNotes: String? = null
+    ): PremiumEntitlement {
+        return PremiumEntitlement(
+            tier = tier,
+            isActive = true,
+            source = source,
+            planId = planId,
+            planName = planName,
+            startDateMillis = System.currentTimeMillis(),
+            expiresAtMillis = expiresAt,
+            adminNotes = adminNotes,
+            isAdFree = true,
+            canAccessAiAssistant = true,
+            canAccessOfflineDownloads = true,
+            canAccessAdvancedReciters = true,
+            canAccessHadithStudyTools = true,
+            canAccessKhatamPlanner = true,
+            canAccessMemorization = true,
+            canAccessThemes = true,
+            canAccessRuqyahAudio = true,
+            canAccessAdvancedQada = true,
+            dailyAiQueriesLimit = 100
+        )
+    }
+
+    /**
+     * Updates local in-memory entitlement state.
+     * Evaluates expiry timestamp and safely downgrades to FREE if expired.
+     */
+    fun updateEntitlementForUser(
+        email: String,
+        isPremium: Boolean,
+        planType: String,
+        expiresAt: Long?,
+        source: EntitlementSource = EntitlementSource.DEFAULT
+    ) {
         val isAdmin = email.trim().equals("aqiffarooqui@gmail.com", ignoreCase = true)
-        if (isAdmin || isPremium) {
-            _entitlementFlow.value = createPremiumEntitlement(
-                planId = if (isAdmin) "lifetime_vip" else planType.lowercase().replace(" ", "_"),
-                planName = if (isAdmin) "Lifetime VIP (Admin)" else planType,
+        val now = System.currentTimeMillis()
+
+        // Check if subscription has expired
+        val isExpired = expiresAt != null && expiresAt < now
+
+        if (isAdmin) {
+            _entitlementFlow.value = createActiveEntitlement(
+                tier = SubscriptionTier.ADMIN_GRANTED,
+                planId = "admin_super",
+                planName = "Super Admin Access",
+                source = EntitlementSource.ADMIN_GRANT,
+                expiresAt = null,
+                adminNotes = "Permanent Super Administrator"
+            )
+        } else if (isPremium && !isExpired) {
+            val tier = mapPlanNameToTier(planType)
+            _entitlementFlow.value = createActiveEntitlement(
+                tier = tier,
+                planId = planType.lowercase().replace(" ", "_"),
+                planName = planType,
+                source = source,
                 expiresAt = expiresAt
             )
         } else {
-            _entitlementFlow.value = PremiumEntitlement(
-                state = EntitlementState.FREE,
-                planId = "free",
-                planName = "Free Member",
-                isAdFree = false,
-                canAccessAiAssistant = true, // Free trial basic access
-                canAccessOfflineDownloads = false,
-                canAccessAdvancedReciters = false,
-                canAccessHadithStudyTools = false,
-                canAccessKhatamPlanner = false,
-                canAccessMemorization = false,
-                canAccessThemes = false,
-                dailyAiQueriesLimit = 3
-            )
+            // Either not premium or expired -> downgrade to FREE
+            _entitlementFlow.value = createFreeEntitlement()
+        }
+    }
+
+    fun mapPlanNameToTier(planName: String): SubscriptionTier {
+        return when {
+            planName.contains("7 Day", ignoreCase = true) -> SubscriptionTier.SEVEN_DAY
+            planName.contains("1 Month", ignoreCase = true) || planName.contains("Monthly", ignoreCase = true) -> SubscriptionTier.MONTHLY
+            planName.contains("3 Month", ignoreCase = true) || planName.contains("Quarterly", ignoreCase = true) -> SubscriptionTier.QUARTERLY
+            planName.contains("9 Month", ignoreCase = true) -> SubscriptionTier.NINE_MONTH
+            planName.contains("1 Year", ignoreCase = true) || planName.contains("Annual", ignoreCase = true) || planName.contains("Yearly", ignoreCase = true) -> SubscriptionTier.YEARLY
+            planName.contains("Admin", ignoreCase = true) -> SubscriptionTier.ADMIN_GRANTED
+            else -> SubscriptionTier.MONTHLY
         }
     }
 
     override suspend fun checkEntitlements(): PremiumEntitlement {
+        val current = _entitlementFlow.value
+        if (current.isExpired && current.tier != SubscriptionTier.ADMIN_GRANTED) {
+            _entitlementFlow.value = createFreeEntitlement()
+        }
         return _entitlementFlow.value
     }
 
-    override suspend fun purchasePlan(productId: String): Result<PremiumEntitlement> {
-        val product = AVAILABLE_PRODUCTS.find { it.id == productId }
-            ?: AVAILABLE_PRODUCTS[1] // fallback to annual
-
-        val newEntitlement = createPremiumEntitlement(
-            planId = product.id,
-            planName = product.title,
-            expiresAt = if (product.id.contains("monthly")) {
-                System.currentTimeMillis() + (30L * 24 * 3600 * 1000)
-            } else if (product.id.contains("annual")) {
-                System.currentTimeMillis() + (365L * 24 * 3600 * 1000)
-            } else null
+    override suspend fun purchasePlan(planId: String): Result<PremiumEntitlement> {
+        val plan = DEFAULT_PLANS.find { it.id == planId } ?: DEFAULT_PLANS[1]
+        val expiresAt = System.currentTimeMillis() + (plan.durationDays.toLong() * 24 * 3600 * 1000)
+        val newEntitlement = createActiveEntitlement(
+            tier = mapPlanNameToTier(plan.title),
+            planId = plan.id,
+            planName = plan.title,
+            source = EntitlementSource.GOOGLE_PLAY,
+            expiresAt = expiresAt
         )
         _entitlementFlow.value = newEntitlement
         return Result.success(newEntitlement)
     }
 
     override suspend fun restorePurchases(): Result<PremiumEntitlement> {
-        // Query stored entitlements / Google Play Billing
         val current = _entitlementFlow.value
         return if (current.isPremiumActive) {
             Result.success(current)
@@ -149,26 +283,8 @@ object SubscriptionManager : SubscriptionRepository {
     override suspend fun cancelSubscription(): Result<Unit> {
         val current = _entitlementFlow.value
         if (current.isPremiumActive) {
-            _entitlementFlow.value = current.copy(state = EntitlementState.CANCELLED_ACTIVE)
+            _entitlementFlow.value = current.copy(isCancelled = true)
         }
         return Result.success(Unit)
-    }
-
-    private fun createPremiumEntitlement(planId: String, planName: String, expiresAt: Long?): PremiumEntitlement {
-        return PremiumEntitlement(
-            state = EntitlementState.PREMIUM,
-            planId = planId,
-            planName = planName,
-            expiresAtMillis = expiresAt,
-            isAdFree = true,
-            canAccessAiAssistant = true,
-            canAccessOfflineDownloads = true,
-            canAccessAdvancedReciters = true,
-            canAccessHadithStudyTools = true,
-            canAccessKhatamPlanner = true,
-            canAccessMemorization = true,
-            canAccessThemes = true,
-            dailyAiQueriesLimit = 100
-        )
     }
 }
