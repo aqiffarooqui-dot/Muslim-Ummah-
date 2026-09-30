@@ -147,6 +147,7 @@ fun AuthDialog(
                     onClick = {
                         if (context is Activity) {
                             onSignInWithGoogle(context)
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
