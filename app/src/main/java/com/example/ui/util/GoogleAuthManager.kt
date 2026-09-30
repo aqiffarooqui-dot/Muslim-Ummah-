@@ -84,46 +84,23 @@ object GoogleAuthManager {
     }
 
     /**
-     * Mandatory Google Sign-In using Android Credential Manager + Google Identity Services.
-     * Incorporates GetSignInWithGoogleOption and GetGoogleIdOption to avoid "No credentials available".
+     * Starts the official Sign in with Google button flow.
+     *
+     * The explicit button flow is the correct flow for a persistent
+     * "Sign in with Google" button. It also handles accounts that require
+     * re-authentication and devices where the Credential Manager sheet was dismissed.
      */
     suspend fun signInWithGoogleCredentialManager(
         context: Context,
         activity: Activity
     ): Result<AppUser> {
-        val credentialManager = CredentialManager.create(context)
         val webClientId = getWebClientId(context)
-
-        val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(webClientId)
-            .setAutoSelectEnabled(false)
-            .build()
-
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
-            .build()
-
-        return try {
-            val result = credentialManager.getCredential(activity, request)
-            handleCredentialResult(result.credential)
-        } catch (e: GetCredentialCancellationException) {
-            Result.failure(Exception("Google Sign-In cancelled by user."))
-        } catch (e: NoCredentialException) {
-            Log.i(TAG, "No Google ID credential available; opening explicit Google sign-in flow.")
-            signInWithGoogleButtonFlow(context, activity, webClientId)
-        } catch (e: GetCredentialException) {
-            Log.w(TAG, "Credential Manager error: ${e.message}", e)
-            signInWithGoogleButtonFlow(context, activity, webClientId)
-        } catch (e: Exception) {
-            Log.e(TAG, "Google Sign-In error: ${e.message}", e)
-            Result.failure(getFriendlyAuthErrorMessage(e))
-        }
+        return signInWithGoogleButtonFlow(context, activity, webClientId)
     }
 
     /**
-     * Explicit Google button flow used when the normal ID-credential flow has no usable credential.
-     * Credential Manager launches Google official account selection/verification UI.
+     * Explicit Google button flow used by the app's "Sign in with Google" button.
+     * Credential Manager launches Google's official account selection/verification UI.
      */
     private suspend fun signInWithGoogleButtonFlow(
         context: Context,
@@ -137,12 +114,18 @@ object GoogleAuthManager {
             val request = GetCredentialRequest.Builder()
                 .addCredentialOption(googleButtonOption)
                 .build()
+
             val result = credentialManager.getCredential(activity, request)
             handleCredentialResult(result.credential)
         } catch (e: GetCredentialCancellationException) {
             Result.failure(Exception("Google Sign-In cancelled by user."))
+        } catch (e: NoCredentialException) {
+            Result.failure(Exception("No Google account is available. Please add a Google account to this device and try again."))
+        } catch (e: GetCredentialException) {
+            Log.w(TAG, "Google Credential Manager error: \${e.message}", e)
+            Result.failure(getFriendlyAuthErrorMessage(e))
         } catch (e: Exception) {
-            Log.e(TAG, "Explicit Google Sign-In failed: ${e.message}", e)
+            Log.e(TAG, "Explicit Google Sign-In failed: \${e.message}", e)
             Result.failure(getFriendlyAuthErrorMessage(e))
         }
     }
