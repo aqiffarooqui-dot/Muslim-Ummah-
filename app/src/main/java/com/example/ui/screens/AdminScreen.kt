@@ -39,14 +39,14 @@ import java.util.Locale
 fun AdminScreen(
     uiState: MuslimUiState,
     allUsers: List<AppUser>,
-    subscriptionPlans: List<SubscriptionPlanConfig>,
-    onUpdateSubscription: (email: String, isPremium: Boolean, planType: String, durationDays: Int?, expiresAtOverride: Long?) -> Unit,
+    onUpdateSubscription: (email: String, isPremium: Boolean, planType: String, durationDays: Int?) -> Unit,
     onDeleteUser: (email: String) -> Unit,
     onAddNewUser: (email: String, displayName: String, isPremium: Boolean, planType: String) -> Unit,
-    onPublishPricing: (List<SubscriptionPlanConfig>) -> Unit,
-    onCalculateSuggestions: (basePlanId: String, basePrice: Int) -> Map<String, Int>,
     onSearchChange: (String) -> Unit,
     onFilterPlanChange: (String) -> Unit,
+    subscriptionPlans: List<SubscriptionPlanConfig> = com.example.data.subscription.SubscriptionPricingManager.plansState.value,
+    onPublishPricing: (List<SubscriptionPlanConfig>) -> Unit = {},
+    onCalculateSuggestions: (basePlanId: String, basePrice: Int) -> Map<String, Int> = { id, p -> com.example.data.subscription.SubscriptionPricingManager.calculateSuggestedPrices(id, p) },
     modifier: Modifier = Modifier
 ) {
     var showAddUserDialog by remember { mutableStateOf(false) }
@@ -333,7 +333,7 @@ fun AdminScreen(
                             val willBePremium = !user.isPremium
                             val plan = if (willBePremium) "1 Month" else "Free"
                             val duration = if (willBePremium) 30 else null
-                            onUpdateSubscription(user.email, willBePremium, plan, duration, null)
+                            onUpdateSubscription(user.email, willBePremium, plan, duration)
                         }
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -612,7 +612,7 @@ fun AdminScreen(
                     // 5 Official Plans
                     OutlinedButton(
                         onClick = {
-                            onUpdateSubscription(user.email, true, "7 Days", 7, null)
+                            onUpdateSubscription(user.email, true, "7 Days", 7)
                             selectedUserForEdit = null
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -622,7 +622,7 @@ fun AdminScreen(
 
                     OutlinedButton(
                         onClick = {
-                            onUpdateSubscription(user.email, true, "1 Month", 30, null)
+                            onUpdateSubscription(user.email, true, "1 Month", 30)
                             selectedUserForEdit = null
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -632,7 +632,7 @@ fun AdminScreen(
 
                     OutlinedButton(
                         onClick = {
-                            onUpdateSubscription(user.email, true, "3 Months", 90, null)
+                            onUpdateSubscription(user.email, true, "3 Months", 90)
                             selectedUserForEdit = null
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -642,7 +642,7 @@ fun AdminScreen(
 
                     OutlinedButton(
                         onClick = {
-                            onUpdateSubscription(user.email, true, "9 Months", 270, null)
+                            onUpdateSubscription(user.email, true, "9 Months", 270)
                             selectedUserForEdit = null
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -652,7 +652,7 @@ fun AdminScreen(
 
                     OutlinedButton(
                         onClick = {
-                            onUpdateSubscription(user.email, true, "1 Year", 365, null)
+                            onUpdateSubscription(user.email, true, "1 Year", 365)
                             selectedUserForEdit = null
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -664,8 +664,7 @@ fun AdminScreen(
                     if (isActive && user.expiresAt != null) {
                         Button(
                             onClick = {
-                                val newExpiry = user.expiresAt + (30L * 24 * 3600 * 1000)
-                                onUpdateSubscription(user.email, true, user.planType, null, newExpiry)
+                                onUpdateSubscription(user.email, true, user.planType, 30)
                                 selectedUserForEdit = null
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
@@ -680,7 +679,7 @@ fun AdminScreen(
                     // Revoke / Downgrade to Free
                     OutlinedButton(
                         onClick = {
-                            onUpdateSubscription(user.email, false, "Free", null, null)
+                            onUpdateSubscription(user.email, false, "Free", null)
                             selectedUserForEdit = null
                         },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),

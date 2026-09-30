@@ -53,6 +53,7 @@ fun SettingsScreen(
     var showReciterDialog by remember { mutableStateOf(false) }
     var showAdhanDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
 
     // Notification Toggles State
     var prayerNotifsEnabled by remember { mutableStateOf(true) }
@@ -368,6 +369,13 @@ fun SettingsScreen(
             ) {
                 Column {
                     SettingsRowItem(
+                        title = "About Muslim Ummah",
+                        subtitle = "Developer Mohd Aqif Farooqui • Authentic Islamic companion",
+                        icon = Icons.Default.Info,
+                        onClick = { showAboutDialog = true }
+                    )
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    SettingsRowItem(
                         title = "Privacy Policy & Terms",
                         subtitle = "Offline-first, zero tracking, secure data handling",
                         icon = Icons.Default.Shield,
@@ -378,7 +386,7 @@ fun SettingsScreen(
                         title = "App Version",
                         subtitle = "Muslim Ummah v1.0.0 (Production)",
                         icon = Icons.Default.Smartphone,
-                        onClick = {}
+                        onClick = { showAboutDialog = true }
                     )
                 }
             }
@@ -631,6 +639,121 @@ fun SettingsScreen(
                 }
             },
             confirmButton = { TextButton(onClick = { showPrivacyDialog = false }) { Text("Understood") } }
+        )
+    }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.Mosque, contentDescription = null, tint = GoldSecondary)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "About Muslim Ummah",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = EmeraldPrimary.copy(alpha = 0.12f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Developer",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = EmeraldPrimary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Mohd Aqif Farooqui",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                                Text(
+                                    text = "Lead Android Architect & Islamic Software Engineer",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        Text(
+                            text = "Purpose & Mission",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Muslim Ummah (أمة المسلمين) is built as a pure, reverent, and distractions-free digital Islamic sanctuary. Designed with modern Android architecture and native Jetpack Compose to accompany every believer in their daily prayers, Quranic study, Hadith contemplation, and personal remembrance of Allah (SWT).",
+                            style = MaterialTheme.typography.bodySmall,
+                            lineHeight = 20.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    item {
+                        Text(
+                            text = "Authentic Core Features",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "• Complete Holy Quran: All 114 Surahs, 30 Juz/Paras, verified Uthmani script with translations (English, Urdu, Hindi, Hinglish).\n" +
+                                   "• Canonical Hadith Library: Sourced Kutub al-Sittah collections (Bukhari, Muslim, Tirmidhi, Abu Dawud, Nasa'i, Ibn Majah).\n" +
+                                   "• Astronomical Prayer Times: High-precision astronomical calculations with location-aware countdowns.\n" +
+                                   "• Precision Qibla Compass: Device sensor telemetry calibrated to the Holy Kaaba.\n" +
+                                   "• Authentic Daily Duas & 99 Names: Sourced supplications with Arabic, transliterations and meanings.\n" +
+                                   "• Digital Tasbih & Dhikr Tracker: Haptic-enabled counter with session history.",
+                            style = MaterialTheme.typography.bodySmall,
+                            lineHeight = 20.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    item {
+                        Text(
+                            text = "Credits & Attributions",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "• Quran text & translations: Tanzil Project & King Fahd Quran Printing Complex.\n" +
+                                   "• Hadith texts: Shamela & Sunnah corpus.\n" +
+                                   "• Prayer calculation algorithms: PrayTimes.org & astronomical conventions.\n" +
+                                   "• Audio recitations: EveryAyah.com & Quran Central open archives.",
+                            style = MaterialTheme.typography.bodySmall,
+                            lineHeight = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    item {
+                        Text(
+                            text = "Version: 1.0.0 (Build 1) • Production",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) {
+                    Text("Close")
+                }
+            }
         )
     }
 }

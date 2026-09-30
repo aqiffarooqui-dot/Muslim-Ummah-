@@ -140,33 +140,19 @@ object SubscriptionPricingManager {
      */
     fun calculateSuggestedPrices(basePlanId: String, basePrice: Int): Map<String, Int> {
         val basePlan = DEFAULT_CONFIGS.find { it.id == basePlanId } ?: DEFAULT_CONFIGS[0]
-        if (basePrice <= 0 || basePlan.durationDays <= 0) return emptyMap()
+        if (basePrice <= 0 || basePlan.priceInr <= 0) return emptyMap()
 
-        // Base daily rate before discount
-        val dailyRate = basePrice.toDouble() / basePlan.durationDays
-
+        // Proportional ratio relative to the standard base pricing model
+        val ratio = basePrice.toDouble() / basePlan.priceInr
         val suggestions = mutableMapOf<String, Int>()
 
         for (plan in DEFAULT_CONFIGS) {
             if (plan.id == basePlanId) {
                 suggestions[plan.id] = basePrice
-                continue
+            } else {
+                val scaled = plan.priceInr * ratio
+                suggestions[plan.id] = roundToPricePoint(scaled)
             }
-
-            // Apply progressive discount percentage based on length
-            val discountFactor = when (plan.durationDays) {
-                7 -> 0.0 // no discount
-                30 -> 0.15 // 15% discount
-                90 -> 0.28 // 28% discount
-                270 -> 0.42 // 42% discount
-                365 -> 0.50 // 50% discount
-                else -> 0.20
-            }
-
-            val rawCost = dailyRate * plan.durationDays * (1.0 - discountFactor)
-            // Round to sensible standard Indian pricing ending in 9 (e.g. 49, 129, 299, 649, 799)
-            val rounded = roundToPricePoint(rawCost)
-            suggestions[plan.id] = rounded.coerceAtLeast(9)
         }
 
         return suggestions

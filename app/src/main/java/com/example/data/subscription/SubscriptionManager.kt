@@ -17,6 +17,8 @@ enum class SubscriptionTier {
     ADMIN_GRANTED
 }
 
+typealias EntitlementState = SubscriptionTier
+
 enum class EntitlementSource {
     DEFAULT,
     GOOGLE_PLAY,
@@ -50,6 +52,13 @@ data class PremiumEntitlement(
     val dailyAiQueriesLimit: Int = 3,
     val dailyAiQueriesUsed: Int = 0
 ) {
+    val state: SubscriptionTier get() = tier
+
+    constructor(state: SubscriptionTier = SubscriptionTier.FREE, isAdFree: Boolean = false) : this(
+        tier = state,
+        isActive = (state != SubscriptionTier.FREE),
+        isAdFree = isAdFree
+    )
     /**
      * Calculates whether the user currently has an active Premium session.
      * Automatically returns false if the subscription has passed its expiry date.

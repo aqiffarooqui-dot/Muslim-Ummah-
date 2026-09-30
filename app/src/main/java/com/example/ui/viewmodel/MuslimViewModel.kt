@@ -11,9 +11,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.*
 import com.example.data.model.*
-import com.example.data.subscription.EntitlementState
 import com.example.data.subscription.PremiumEntitlement
 import com.example.data.subscription.SubscriptionManager
+import com.example.data.subscription.SubscriptionTier
 import com.example.data.sync.FirebaseSyncManager
 import com.example.ui.theme.AppThemeType
 import com.example.ui.theme.ThemeManager
@@ -96,7 +96,7 @@ data class MuslimUiState(
     val isAuthLoading: Boolean = false,
     val authErrorMessage: String? = null,
     val isAuthInitialized: Boolean = false,
-    val entitlement: PremiumEntitlement = PremiumEntitlement(state = EntitlementState.FREE, isAdFree = false),
+    val entitlement: PremiumEntitlement = PremiumEntitlement(tier = SubscriptionTier.FREE, isAdFree = false),
     val isAdmin: Boolean = false,
     val isPremium: Boolean = false,
     val showPaywallModal: Boolean = false,
@@ -272,7 +272,7 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         observeCompass()
     }
 
-    private suspend fun checkAndUpdateUserStatus(user: AppUser?) {
+    private fun checkAndUpdateUserStatus(user: AppUser?) {
         if (user == null) {
             _uiState.update {
                 it.copy(
@@ -285,18 +285,20 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
-        val serverUser = FirebaseSyncManager.applyServerUserProfile(user)
-        val isAdmin = serverUser.role == "ADMIN"
-        val isPremium = serverUser.isPremium
+        viewModelScope.launch {
+            val serverUser = FirebaseSyncManager.applyServerUserProfile(user)
+            val isAdmin = serverUser.role == "ADMIN"
+            val isPremium = serverUser.isPremium
 
-        SubscriptionManager.updateEntitlementForUser(serverUser.email, isPremium, serverUser.planType, serverUser.expiresAt)
+            SubscriptionManager.updateEntitlementForUser(serverUser.email, isPremium, serverUser.planType, serverUser.expiresAt)
 
-        _uiState.update {
-            it.copy(
-                currentUser = serverUser,
-                isAdmin = isAdmin,
-                isPremium = isPremium
-            )
+            _uiState.update {
+                it.copy(
+                    currentUser = serverUser,
+                    isAdmin = isAdmin,
+                    isPremium = isPremium
+                )
+            }
         }
     }
 
