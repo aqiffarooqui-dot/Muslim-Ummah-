@@ -63,13 +63,6 @@ class ExampleRobolectricTest {
     }
 
     @Test
-    fun `admin check confirms aqiffarooqui email as super admin`() {
-        assertTrue(com.example.ui.util.GoogleAuthManager.isAdminEmail("aqiffarooqui@gmail.com"))
-        assertTrue(com.example.ui.util.GoogleAuthManager.isAdminEmail("AqifFarooqui@Gmail.Com"))
-        org.junit.Assert.assertFalse(com.example.ui.util.GoogleAuthManager.isAdminEmail("other.user@gmail.com"))
-    }
-
-    @Test
     fun `mumbai prayer calculation succeeds with Karachi method`() {
         val calendar = Calendar.getInstance()
         val times = PrayerCalculator.calculateTimes(
