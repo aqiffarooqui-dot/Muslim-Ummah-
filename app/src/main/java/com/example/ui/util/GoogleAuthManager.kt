@@ -294,17 +294,4 @@ object GoogleAuthManager {
         }
     }
 
-    fun createDefaultAdminUser(): AppUser {
-        return AppUser(
-            uid = "admin_owner_aqif",
-            email = ADMIN_EMAIL,
-            displayName = "Aqif Farooqui",
-            photoUrl = "",
-            isPremium = true,
-            planType = "Lifetime VIP",
-            role = "ADMIN",
-            registeredDate = System.currentTimeMillis() - (60L * 24 * 3600 * 1000),
-            notes = "Owner & System Administrator"
-        )
-    }
 }
