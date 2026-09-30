@@ -343,10 +343,6 @@ fun MainAppScreen(
             featureTrigger = uiState.paywallTriggerFeature,
             onDismiss = { viewModel.dismissPaywall() },
             onSubscribe = { plan -> viewModel.subscribePlan(plan) },
-            onLoginAsAdmin = {
-                viewModel.loginAsAdmin()
-                viewModel.dismissPaywall()
-            }
         )
     }
 
@@ -359,18 +355,10 @@ fun MainAppScreen(
                 viewModel.signInWithGoogle(activity)
                 showAuthDialog = false
             },
-            onSignInWithEmail = { email, name ->
-                viewModel.signInWithGoogleEmail(email, name)
-                showAuthDialog = false
-            },
             onSignOut = {
                 viewModel.signOutUser(context)
                 showAuthDialog = false
             },
-            onLoginAsAdmin = {
-                viewModel.loginAsAdmin()
-                showAuthDialog = false
-            }
         )
     }
 }
