@@ -425,35 +425,6 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun signInWithGoogleEmail(email: String, displayName: String? = null) {
-        viewModelScope.launch {
-            if (email.isBlank() || !email.contains("@")) {
-                showStatus("Please enter a valid Google email address.")
-                return@launch
-            }
-            val cleanEmail = email.trim()
-            val isAdmin = GoogleAuthManager.isAdminEmail(cleanEmail)
-            val name = displayName?.ifBlank { null } ?: cleanEmail.substringBefore("@").replace(".", " ")
-                .split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
-            val uid = "google_" + cleanEmail.replace("@", "_").replace(".", "_")
-            val user = AppUser(
-                uid = uid,
-                email = cleanEmail,
-                displayName = name,
-                photoUrl = "",
-                isPremium = isAdmin,
-                planType = if (isAdmin) "Lifetime VIP" else "Free",
-                role = if (isAdmin) "ADMIN" else "USER",
-                registeredDate = System.currentTimeMillis(),
-                notes = if (isAdmin) "Primary Administrator" else "Google Account"
-            )
-            repository.saveUser(user)
-            checkAndUpdateUserStatus(user)
-            FirebaseSyncManager.syncUserProfile(user)
-            FirebaseSyncManager.pullAndSyncAllData(user.uid, repository)
-            showStatus("Signed in as ${user.displayName}")
-        }
-    }
 
     // ==========================================
     // GPS Device Location
