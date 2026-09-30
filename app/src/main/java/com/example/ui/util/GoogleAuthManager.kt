@@ -22,14 +22,9 @@ import kotlinx.coroutines.withContext
 
 object GoogleAuthManager {
     private const val TAG = "GoogleAuthManager"
-    const val ADMIN_EMAIL = "aqiffarooqui@gmail.com"
 
     // Fallback Web Client ID if resource lookup fails
     private const val WEB_CLIENT_ID_FALLBACK = "518938483883-3f0vvd8bkcd8e0cc21h6ciifgg1j3euv.apps.googleusercontent.com"
-
-    fun isAdminEmail(email: String): Boolean {
-        return email.trim().equals(ADMIN_EMAIL, ignoreCase = true)
-    }
 
     /**
      * Resolves the Web OAuth client ID dynamically from google-services generated resources:
@@ -71,15 +66,14 @@ object GoogleAuthManager {
         return try {
             val fbUser = FirebaseAuth.getInstance().currentUser ?: return null
             val email = fbUser.email ?: ""
-            val isAdmin = isAdminEmail(email)
             AppUser(
                 uid = fbUser.uid,
                 email = email.trim(),
                 displayName = fbUser.displayName?.ifBlank { null } ?: email.substringBefore("@"),
                 photoUrl = fbUser.photoUrl?.toString() ?: "",
-                isPremium = isAdmin,
-                planType = if (isAdmin) "Lifetime VIP" else "Free",
-                role = if (isAdmin) "ADMIN" else "USER",
+                isPremium = false,
+                planType = "Free",
+                role = "USER",
                 registeredDate = fbUser.metadata?.creationTimestamp ?: System.currentTimeMillis(),
                 notes = if (isAdmin) "Primary Administrator" else "Google Authenticated"
             )
@@ -153,16 +147,14 @@ object GoogleAuthManager {
             val authResult = firebaseAuth.signInWithCredential(authCredential).await()
             val firebaseUser = authResult.user ?: throw Exception("Firebase user is null after sign-in")
 
-            val isAdmin = isAdminEmail(firebaseUser.email ?: email)
-
             val user = AppUser(
                 uid = firebaseUser.uid,
                 email = (firebaseUser.email ?: email).trim(),
                 displayName = firebaseUser.displayName ?: name,
                 photoUrl = firebaseUser.photoUrl?.toString() ?: photo,
-                isPremium = isAdmin,
-                planType = if (isAdmin) "Lifetime VIP" else "Free",
-                role = if (isAdmin) "ADMIN" else "USER",
+                isPremium = false,
+                planType = "Free",
+                role = "USER",
                 registeredDate = firebaseUser.metadata?.creationTimestamp ?: System.currentTimeMillis(),
                 notes = if (isAdmin) "Primary Administrator" else "Google Authenticated"
             )
@@ -185,15 +177,14 @@ object GoogleAuthManager {
             val authResult = firebaseAuth.signInWithEmailAndPassword(cleanEmail, password).await()
             val firebaseUser = authResult.user ?: throw Exception("User is null after sign in")
 
-            val isAdmin = isAdminEmail(cleanEmail)
             val user = AppUser(
                 uid = firebaseUser.uid,
                 email = cleanEmail,
                 displayName = firebaseUser.displayName?.ifBlank { null } ?: cleanEmail.substringBefore("@"),
                 photoUrl = firebaseUser.photoUrl?.toString() ?: "",
-                isPremium = isAdmin,
-                planType = if (isAdmin) "Lifetime VIP" else "Free",
-                role = if (isAdmin) "ADMIN" else "USER",
+                isPremium = false,
+                planType = "Free",
+                role = "USER",
                 registeredDate = firebaseUser.metadata?.creationTimestamp ?: System.currentTimeMillis(),
                 notes = if (isAdmin) "Primary Administrator" else "Email Authenticated"
             )
@@ -226,15 +217,14 @@ object GoogleAuthManager {
                 firebaseUser.updateProfile(profileUpdates).await()
             } catch (_: Exception) {}
 
-            val isAdmin = isAdminEmail(cleanEmail)
             val user = AppUser(
                 uid = firebaseUser.uid,
                 email = cleanEmail,
                 displayName = name,
                 photoUrl = "",
-                isPremium = isAdmin,
-                planType = if (isAdmin) "Lifetime VIP" else "Free",
-                role = if (isAdmin) "ADMIN" else "USER",
+                isPremium = false,
+                planType = "Free",
+                role = "USER",
                 registeredDate = System.currentTimeMillis(),
                 notes = if (isAdmin) "Primary Administrator" else "Email Registered"
             )
