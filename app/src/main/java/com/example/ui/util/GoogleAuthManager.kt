@@ -146,6 +146,43 @@ object GoogleAuthManager {
             Result.failure(getFriendlyAuthErrorMessage(e))
         }
     }
+    private suspend fun handleCredentialResult(credential: androidx.credentials.Credential): Result<AppUser> {
+        if (credential !is androidx.credentials.CustomCredential ||
+            credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+        ) {
+            return Result.failure(Exception("Unexpected Google credential received. Please try again."))
+        }
+
+        return try {
+            val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
+            val firebaseCredential = GoogleAuthProvider.getCredential(googleCredential.idToken, null)
+            val authResult = FirebaseAuth.getInstance().signInWithCredential(firebaseCredential).await()
+            val firebaseUser = authResult.user ?: throw Exception("Firebase user is null after Google sign-in")
+
+            Result.success(
+                AppUser(
+                    uid = firebaseUser.uid,
+                    email = (firebaseUser.email ?: googleCredential.id).trim(),
+                    displayName = firebaseUser.displayName
+                        ?.ifBlank { null }
+                        ?: googleCredential.displayName
+                        ?: googleCredential.id.substringBefore("@"),
+                    photoUrl = firebaseUser.photoUrl?.toString()
+                        ?: googleCredential.profilePictureUri?.toString()
+                        ?: "",
+                    isPremium = false,
+                    planType = "Free",
+                    role = "USER",
+                    registeredDate = firebaseUser.metadata?.creationTimestamp
+                        ?: System.currentTimeMillis(),
+                    notes = "Google Authenticated"
+                )
+            )
+        } catch (e: Exception) {
+            Result.failure(getFriendlyAuthErrorMessage(e))
+        }
+    }
+
     /**
      * Firebase Email and Password Sign In
      */
