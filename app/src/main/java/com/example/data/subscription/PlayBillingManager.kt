@@ -254,20 +254,43 @@ object PlayBillingManager : PurchasesUpdatedListener {
             val purchasedProduct = purchase.products.firstOrNull() ?: return@launch
             val plan = SubscriptionPricingManager.plansState.value.find {
                 it.googlePlayProductId == purchasedProduct
-            } ?: SubscriptionPricingManager.plansState.value.firstOrNull()
+            }
 
-            val planDurationDays = plan?.durationDays ?: 30
-            val expiryMillis = System.currentTimeMillis() + (planDurationDays * 24L * 60L * 60L * 1000L)
-            val userEmail = FirebaseAuth.getInstance().currentUser?.email ?: "user@muslimummah.app"
+            // Never fall back to an unrelated plan: an unknown Play product must
+            // not accidentally grant the wrong entitlement.
+            if (plan == null) {
+                Log.e(TAG, "Unknown Google Play product '${purchasedProduct}'; entitlement not granted.")
+                return@launch
+            }
+
+            // Use the Play purchase timestamp rather than "now". This prevents a
+            // restored purchase from receiving a fresh full-duration entitlement
+            // every time the app starts.
+            val purchaseTimeMillis = purchase.purchaseTime.takeIf { it > 0L }
+                ?: System.currentTimeMillis()
+            val expiryMillis = purchaseTimeMillis +
+                (plan.durationDays * 24L * 60L * 60L * 1000L)
+
+            if (expiryMillis <= System.currentTimeMillis()) {
+                Log.w(TAG, "Google Play purchase for '${plan.name}' is already expired; entitlement not granted.")
+                return@launch
+            }
+
+            val user = FirebaseAuth.getInstance().currentUser
+            val userEmail = user?.email
+            if (userEmail.isNullOrBlank()) {
+                Log.w(TAG, "No authenticated Firebase user; entitlement not granted.")
+                return@launch
+            }
 
             SubscriptionManager.updateEntitlementForUser(
                 email = userEmail,
                 isPremium = true,
-                planType = plan?.name ?: "1 Month",
+                planType = plan.name,
                 expiresAt = expiryMillis,
                 source = EntitlementSource.GOOGLE_PLAY
             )
-            Log.i(TAG, "Entitlement granted via Google Play purchase: ${plan?.name}, expires at: $expiryMillis")
+            Log.i(TAG, "Entitlement granted via Google Play purchase: ${plan.name}, expires at: $expiryMillis")
         }
     }
 
