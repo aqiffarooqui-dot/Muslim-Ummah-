@@ -267,17 +267,17 @@ object SubscriptionManager : SubscriptionRepository {
     }
 
     override suspend fun purchasePlan(planId: String): Result<PremiumEntitlement> {
-        val plan = DEFAULT_PLANS.find { it.id == planId } ?: DEFAULT_PLANS[1]
-        val expiresAt = System.currentTimeMillis() + (plan.durationDays.toLong() * 24 * 3600 * 1000)
-        val newEntitlement = createActiveEntitlement(
-            tier = mapPlanNameToTier(plan.title),
-            planId = plan.id,
-            planName = plan.title,
-            source = EntitlementSource.GOOGLE_PLAY,
-            expiresAt = expiresAt
+        // Entitlements must never be granted by this local repository method.
+        // Real purchases are initiated and confirmed by PlayBillingManager.
+        // This method remains for repository compatibility but deliberately fails
+        // instead of creating a locally fabricated Premium entitlement.
+        val plan = DEFAULT_PLANS.find { it.id == planId }
+        return Result.failure(
+            IllegalStateException(
+                if (plan == null) "Unknown subscription plan: $planId"
+                else "Google Play checkout must be used to purchase ${plan.title}."
+            )
         )
-        _entitlementFlow.value = newEntitlement
-        return Result.success(newEntitlement)
     }
 
     override suspend fun restorePurchases(): Result<PremiumEntitlement> {
