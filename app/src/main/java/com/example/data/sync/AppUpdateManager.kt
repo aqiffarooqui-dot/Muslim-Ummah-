@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class AppUpdateInfo(
-    val currentVersion: String = "1.0.0",
+    val currentVersion: String = BuildConfig.VERSION_NAME,
     val latestVersion: String = "1.0.0",
     val whatsNew: List<String> = emptyList(),
     val downloadUrl: String? = null,
