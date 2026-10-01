@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import com.example.BuildConfig
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,12 +24,12 @@ data class AppUpdateInfo(
 
 object AppUpdateManager {
     private const val TAG = "AppUpdateManager"
-    private const val CURRENT_VERSION = "1.0.0"
+    private val currentVersion: String get() = BuildConfig.VERSION_NAME
 
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    private val _updateState = MutableStateFlow(AppUpdateInfo(currentVersion = CURRENT_VERSION))
+    private val _updateState = MutableStateFlow(AppUpdateInfo(currentVersion = currentVersion))
     val updateState: StateFlow<AppUpdateInfo> = _updateState.asStateFlow()
 
     init {
@@ -44,16 +45,16 @@ object AppUpdateManager {
                         return@addSnapshotListener
                     }
                     if (snapshot != null && snapshot.exists()) {
-                        val latest = snapshot.getString("latestVersion") ?: CURRENT_VERSION
+                        val latest = snapshot.getString("latestVersion") ?: currentVersion
                         val url = snapshot.getString("downloadUrl")
                         val mandatory = snapshot.getBoolean("isMandatory") ?: false
                         val notes = snapshot.get("whatsNew") as? List<*>
                         val notesList = notes?.mapNotNull { it?.toString() } ?: emptyList()
 
-                        val isNewer = isVersionNewer(CURRENT_VERSION, latest) && !url.isNullOrBlank()
+                        val isNewer = isVersionNewer(currentVersion, latest) && !url.isNullOrBlank()
 
                         _updateState.value = AppUpdateInfo(
-                            currentVersion = CURRENT_VERSION,
+                            currentVersion = currentVersion,
                             latestVersion = latest,
                             whatsNew = notesList,
                             downloadUrl = url,
