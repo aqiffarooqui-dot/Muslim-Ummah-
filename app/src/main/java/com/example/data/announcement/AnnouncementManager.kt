@@ -75,6 +75,9 @@ object AnnouncementManager {
                             val nextVer = doc.getString("nextVersion") ?: "1.1.0"
                             val cta = doc.getString("ctaText")
                             val ctaUrl = doc.getString("ctaUrl")
+                            val startDateMillis = doc.getLong("startDateMillis")
+                            val endDateMillis = doc.getLong("endDateMillis")
+                            val createdAtMillis = doc.getLong("createdAtMillis") ?: 0L
 
                             list.add(
                                 AppAnnouncement(
@@ -87,13 +90,26 @@ object AnnouncementManager {
                                     currentVersion = currentVer,
                                     nextVersion = nextVer,
                                     ctaText = cta,
-                                    ctaUrl = ctaUrl
+                                    ctaUrl = ctaUrl,
+                                    startDateMillis = startDateMillis,
+                                    endDateMillis = endDateMillis,
+                                    createdAtMillis = createdAtMillis
                                 )
                             )
                         }
-                        _allAnnouncements.value = list
-                        // Active announcement: first active one
-                        _activeAnnouncement.value = list.firstOrNull { it.isActive }
+                        val now = System.currentTimeMillis()
+                        val visibleAnnouncements = list
+                            .filter { announcement ->
+                                announcement.isActive &&
+                                    (announcement.startDateMillis == null || now >= announcement.startDateMillis) &&
+                                    (announcement.endDateMillis == null || now <= announcement.endDateMillis)
+                            }
+                            .sortedByDescending { it.createdAtMillis }
+
+                        _allAnnouncements.value = list.sortedByDescending { it.createdAtMillis }
+                        // Show the newest currently active announcement whose optional
+                        // schedule window includes the current time.
+                        _activeAnnouncement.value = visibleAnnouncements.firstOrNull()
                     }
                 }
         } catch (e: Exception) {
@@ -131,6 +147,9 @@ object AnnouncementManager {
                 "nextVersion" to announcement.nextVersion,
                 "ctaText" to announcement.ctaText,
                 "ctaUrl" to announcement.ctaUrl,
+                "startDateMillis" to announcement.startDateMillis,
+                "endDateMillis" to announcement.endDateMillis,
+                "createdAtMillis" to announcement.createdAtMillis,
                 "updatedAt" to FieldValue.serverTimestamp(),
                 "adminEmail" to adminEmail
             )
