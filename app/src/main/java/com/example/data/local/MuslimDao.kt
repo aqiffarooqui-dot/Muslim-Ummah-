@@ -44,6 +44,12 @@ interface MuslimDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBookmark(bookmark: Bookmark): Long
 
+    @Query("""
+        UPDATE bookmarks SET title = :title, subtitle = :subtitle, timestamp = :timestamp
+        WHERE type = :type AND referenceId = :refId AND secondaryId = :secId
+    """)
+    suspend fun updateBookmark(type: String, refId: Int, secId: Int, title: String, subtitle: String, timestamp: Long)
+
     @Query("DELETE FROM bookmarks WHERE type = :type AND referenceId = :refId AND secondaryId = :secId")
     suspend fun deleteBookmark(type: String, refId: Int, secId: Int)
 
@@ -86,6 +92,12 @@ interface MuslimDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertQuranNote(note: QuranNote): Long
 
+    @Query("""
+        UPDATE quran_notes SET surahName = :surahName, noteText = :noteText, timestamp = :timestamp
+        WHERE surahNumber = :surahNumber AND ayahNumber = :ayahNumber
+    """)
+    suspend fun updateQuranNote(surahNumber: Int, ayahNumber: Int, surahName: String, noteText: String, timestamp: Long)
+
     @Query("DELETE FROM quran_notes WHERE id = :id")
     suspend fun deleteQuranNote(id: Long)
 
@@ -108,6 +120,12 @@ interface MuslimDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHadithNote(note: HadithNote): Long
+
+    @Query("""
+        UPDATE hadith_notes SET noteText = :noteText, timestamp = :timestamp
+        WHERE bookId = :bookId AND hadithId = :hadithId
+    """)
+    suspend fun updateHadithNote(bookId: String, hadithId: Int, noteText: String, timestamp: Long)
 
     @Query("DELETE FROM hadith_notes WHERE id = :id")
     suspend fun deleteHadithNote(id: Long)
