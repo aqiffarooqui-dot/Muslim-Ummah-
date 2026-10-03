@@ -216,22 +216,10 @@ object SubscriptionManager : SubscriptionRepository {
         expiresAt: Long?,
         source: EntitlementSource = EntitlementSource.DEFAULT
     ) {
-        val isAdmin = email.trim().equals("aqiffarooqui@gmail.com", ignoreCase = true)
         val now = System.currentTimeMillis()
-
-        // Check if subscription has expired
         val isExpired = expiresAt != null && expiresAt < now
 
-        if (isAdmin) {
-            _entitlementFlow.value = createActiveEntitlement(
-                tier = SubscriptionTier.ADMIN_GRANTED,
-                planId = "admin_super",
-                planName = "Super Admin Access",
-                source = EntitlementSource.ADMIN_GRANT,
-                expiresAt = null,
-                adminNotes = "Permanent Super Administrator"
-            )
-        } else if (isPremium && !isExpired) {
+        if (isPremium && !isExpired) {
             val tier = mapPlanNameToTier(planType)
             _entitlementFlow.value = createActiveEntitlement(
                 tier = tier,
@@ -241,7 +229,7 @@ object SubscriptionManager : SubscriptionRepository {
                 expiresAt = expiresAt
             )
         } else {
-            // Either not premium or expired -> downgrade to FREE
+            // Not premium or expired -> downgrade to FREE.
             _entitlementFlow.value = createFreeEntitlement()
         }
     }
