@@ -210,8 +210,9 @@ object FirebaseSyncManager {
     }
 
     /**
-     * Bi-directional conflict-aware synchronization:
-     * Restores cloud data onto this device and pushes any newer local data up to Firestore.
+     * Bi-directional timestamp-aware synchronization:
+     * Restores newer cloud records locally and pushes newer local records to Firestore.
+     * Same-key records are compared by timestamp; equal timestamps are left unchanged.
      */
     suspend fun pullAndSyncAllData(uid: String, repository: MuslimRepository) = withContext(Dispatchers.IO) {
         if (uid.isBlank()) return@withContext
@@ -291,11 +292,11 @@ object FirebaseSyncManager {
                 val subtitle = doc.getString("subtitle") ?: ""
                 val timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
 
-                val existsLocally = localBookmarks.any {
+                val localBookmark = localBookmarks.firstOrNull {
                     it.type == type && it.referenceId == refId && it.secondaryId == secId
                 }
-                if (!existsLocally) {
-                    repository.insertBookmark(
+                when {
+                    localBookmark == null -> repository.insertBookmark(
                         Bookmark(
                             type = type,
                             referenceId = refId,
@@ -305,14 +306,25 @@ object FirebaseSyncManager {
                             timestamp = timestamp
                         )
                     )
+                    timestamp > localBookmark.timestamp -> {
+                        repository.updateBookmark(
+                            type = type,
+                            refId = refId,
+                            secId = secId,
+                            title = title,
+                            subtitle = subtitle,
+                            timestamp = timestamp
+                        )
+                    }
                 }
             }
 
             // Push any local bookmarks not yet in cloud
             for (b in localBookmarks) {
                 val docId = "${b.type}_${b.referenceId}_${b.secondaryId}"
-                val existsInCloud = cloudBookmarks.documents.any { it.id == docId }
-                if (!existsInCloud) {
+                val cloudBookmark = cloudBookmarks.documents.firstOrNull { it.id == docId }
+                val cloudTimestamp = cloudBookmark?.getLong("timestamp") ?: 0L
+                if (cloudBookmark == null || b.timestamp > cloudTimestamp) {
                     saveBookmark(uid, b)
                 }
             }
@@ -329,11 +341,11 @@ object FirebaseSyncManager {
                 val noteText = doc.getString("noteText") ?: ""
                 val timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
 
-                val existsLocally = localQuranNotes.any {
+                val localNote = localQuranNotes.firstOrNull {
                     it.surahNumber == surahNum && it.ayahNumber == ayahNum
                 }
-                if (!existsLocally && noteText.isNotBlank()) {
-                    repository.addQuranNote(
+                when {
+                    localNote == null && noteText.isNotBlank() -> repository.addQuranNote(
                         QuranNote(
                             surahNumber = surahNum,
                             ayahNumber = ayahNum,
@@ -342,13 +354,23 @@ object FirebaseSyncManager {
                             timestamp = timestamp
                         )
                     )
+                    localNote != null && noteText.isNotBlank() && timestamp > localNote.timestamp -> {
+                        repository.updateQuranNote(
+                            surahNumber = surahNum,
+                            ayahNumber = ayahNum,
+                            surahName = surahName,
+                            noteText = noteText,
+                            timestamp = timestamp
+                        )
+                    }
                 }
             }
 
             for (note in localQuranNotes) {
                 val docId = "${note.surahNumber}_${note.ayahNumber}"
-                val existsInCloud = cloudQuranNotes.documents.any { it.id == docId }
-                if (!existsInCloud) {
+                val cloudNote = cloudQuranNotes.documents.firstOrNull { it.id == docId }
+                val cloudTimestamp = cloudNote?.getLong("timestamp") ?: 0L
+                if (cloudNote == null || note.timestamp > cloudTimestamp) {
                     saveQuranNote(uid, note)
                 }
             }
@@ -364,11 +386,11 @@ object FirebaseSyncManager {
                 val noteText = doc.getString("noteText") ?: ""
                 val timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
 
-                val existsLocally = localHadithNotes.any {
+                val localNote = localHadithNotes.firstOrNull {
                     it.bookId == bookId && it.hadithId == hadithId
                 }
-                if (!existsLocally && noteText.isNotBlank()) {
-                    repository.addHadithNote(
+                when {
+                    localNote == null && noteText.isNotBlank() -> repository.addHadithNote(
                         HadithNote(
                             bookId = bookId,
                             hadithId = hadithId,
@@ -376,13 +398,22 @@ object FirebaseSyncManager {
                             timestamp = timestamp
                         )
                     )
+                    localNote != null && noteText.isNotBlank() && timestamp > localNote.timestamp -> {
+                        repository.updateHadithNote(
+                            bookId = bookId,
+                            hadithId = hadithId,
+                            noteText = noteText,
+                            timestamp = timestamp
+                        )
+                    }
                 }
             }
 
             for (note in localHadithNotes) {
                 val docId = "${note.bookId}_${note.hadithId}"
-                val existsInCloud = cloudHadithNotes.documents.any { it.id == docId }
-                if (!existsInCloud) {
+                val cloudNote = cloudHadithNotes.documents.firstOrNull { it.id == docId }
+                val cloudTimestamp = cloudNote?.getLong("timestamp") ?: 0L
+                if (cloudNote == null || note.timestamp > cloudTimestamp) {
                     saveHadithNote(uid, note)
                 }
             }
