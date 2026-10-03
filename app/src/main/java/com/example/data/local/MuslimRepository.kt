@@ -43,6 +43,10 @@ class MuslimRepository(private val dao: MuslimDao) {
         return dao.insertBookmark(bookmark)
     }
 
+    suspend fun updateBookmark(type: String, refId: Int, secId: Int, title: String, subtitle: String, timestamp: Long) {
+        dao.updateBookmark(type, refId, secId, title, subtitle, timestamp)
+    }
+
     // Users and Subscriptions
     val allUsers: Flow<List<AppUser>> = dao.getAllUsers()
 
@@ -74,6 +78,10 @@ class MuslimRepository(private val dao: MuslimDao) {
         return dao.insertQuranNote(note)
     }
 
+    suspend fun updateQuranNote(surahNumber: Int, ayahNumber: Int, surahName: String, noteText: String, timestamp: Long) {
+        dao.updateQuranNote(surahNumber, ayahNumber, surahName, noteText, timestamp)
+    }
+
     suspend fun deleteQuranNote(id: Long) {
         dao.deleteQuranNote(id)
     }
@@ -88,6 +96,10 @@ class MuslimRepository(private val dao: MuslimDao) {
 
     suspend fun addHadithNote(note: HadithNote): Long {
         return dao.insertHadithNote(note)
+    }
+
+    suspend fun updateHadithNote(bookId: String, hadithId: Int, noteText: String, timestamp: Long) {
+        dao.updateHadithNote(bookId, hadithId, noteText, timestamp)
     }
 
     suspend fun deleteHadithNote(id: Long) {
