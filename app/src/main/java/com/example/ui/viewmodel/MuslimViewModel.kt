@@ -784,6 +784,15 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setCity(city: CityLocation) {
+        // Persist the selected/GPS city so reboot and timezone rescheduling use the same location.
+        getApplication<Application>().getSharedPreferences("muslim_ummah_prayer", Context.MODE_PRIVATE)
+            .edit()
+            .putString("city_name", city.name)
+            .putString("city_country", city.country)
+            .putFloat("city_latitude", city.latitude.toFloat())
+            .putFloat("city_longitude", city.longitude.toFloat())
+            .putFloat("city_timezone_offset", city.timezoneOffsetHours.toFloat())
+            .apply()
         _uiState.update { it.copy(selectedCity = city) }
         recalculatePrayerTimes()
         recalculateQibla()
