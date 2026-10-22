@@ -191,6 +191,21 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
     init {
+        val prayerPrefs = application.getSharedPreferences("muslim_ummah_prayer", Context.MODE_PRIVATE)
+        if (prayerPrefs.contains("city_latitude") && prayerPrefs.contains("city_longitude")) {
+            val fallbackCity = PrayerCalculator.POPULAR_CITIES.first()
+            _uiState.update {
+                it.copy(
+                    selectedCity = CityLocation(
+                        name = prayerPrefs.getString("city_name", fallbackCity.name) ?: fallbackCity.name,
+                        country = prayerPrefs.getString("city_country", fallbackCity.country) ?: fallbackCity.country,
+                        latitude = prayerPrefs.getFloat("city_latitude", fallbackCity.latitude.toFloat()).toDouble(),
+                        longitude = prayerPrefs.getFloat("city_longitude", fallbackCity.longitude.toFloat()).toDouble(),
+                        timezoneOffsetHours = prayerPrefs.getFloat("city_timezone_offset", fallbackCity.timezoneOffsetHours.toFloat()).toDouble()
+                    )
+                )
+            }
+        }
         val database = AppDatabase.getDatabase(application)
         repository = MuslimRepository(database.muslimDao())
 
