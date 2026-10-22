@@ -329,6 +329,13 @@ fun SettingsScreen(
                     )
                     Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
                     NotificationToggleRow(
+                        title = "Daily Dua Reminder",
+                        subtitle = "Daily dhikr and supplication reminder",
+                        checked = dailyDuaReminder,
+                        onCheckedChange = { dailyDuaReminder = it; onSetDailyReminders(dailyQuranReminder, dailyHadithReminder, it) }
+                    )
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
+                    NotificationToggleRow(
                         title = "Tahajjud & Night Vigil Reminder",
                         subtitle = "Pre-Fajr wake up notification",
                         checked = tahajjudReminder,
