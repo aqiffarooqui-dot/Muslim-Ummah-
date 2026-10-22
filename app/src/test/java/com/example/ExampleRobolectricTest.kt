@@ -81,32 +81,31 @@ class ExampleRobolectricTest {
     // ==========================================
 
     @Test
-    fun `subscription pricing contains exactly 5 official plans`() {
+    fun `subscription pricing contains exactly the 4 approved plans`() {
         val plans = SubscriptionPricingManager.plansState.value
-        assertEquals(5, plans.size)
+        assertEquals(4, plans.size)
         val planIds = plans.map { it.id }
         assertTrue(planIds.contains("plan_7_days"))
         assertTrue(planIds.contains("plan_1_month"))
         assertTrue(planIds.contains("plan_3_months"))
         assertTrue(planIds.contains("plan_9_months"))
-        assertTrue(planIds.contains("plan_1_year"))
+        assertFalse(planIds.contains("plan_1_year"))
 
-        val plan7d = plans.find { it.id == "plan_7_days" }
-        assertEquals(49, plan7d?.priceInr)
-
-        val plan1m = plans.find { it.id == "plan_1_month" }
-        assertEquals(129, plan1m?.priceInr)
+        assertEquals(49, plans.find { it.id == "plan_7_days" }?.priceInr)
+        assertEquals(129, plans.find { it.id == "plan_1_month" }?.priceInr)
+        assertEquals(299, plans.find { it.id == "plan_3_months" }?.priceInr)
+        assertEquals(649, plans.find { it.id == "plan_9_months" }?.priceInr)
     }
 
     @Test
-    fun `pricing calculator generates progressive proportional suggestions for 5 plans`() {
+    fun `pricing calculator generates proportional suggestions for approved plans`() {
         val suggestions = SubscriptionPricingManager.calculateSuggestedPrices("plan_7_days", 49)
-        assertEquals(5, suggestions.size)
+        assertEquals(4, suggestions.size)
         assertEquals(49, suggestions["plan_7_days"])
         assertTrue((suggestions["plan_1_month"] ?: 0) in 100..200)
         assertTrue((suggestions["plan_3_months"] ?: 0) in 250..400)
         assertTrue((suggestions["plan_9_months"] ?: 0) in 550..750)
-        assertTrue((suggestions["plan_1_year"] ?: 0) in 700..900)
+        assertFalse(suggestions.containsKey("plan_1_year"))
     }
 
     @Test
@@ -256,20 +255,21 @@ class ExampleRobolectricTest {
     // ==========================================
 
     @Test
-    fun `muslim ummah ai provides verified citations for witr prayer`() {
+    fun `muslim ummah ai does not present unverified preset citations for witr prayer`() {
         val answer = MuslimUmmahAiEngine.answerQuery("What is the method of Witr prayer?", AiMode.GENERAL)
         assertNotNull(answer)
-        assertTrue(answer.quranCitations.isNotEmpty())
-        assertTrue(answer.hadithCitations.isNotEmpty())
-        assertTrue(answer.scholarlyOpinions != null)
+        assertTrue(answer.quranCitations.isEmpty())
+        assertTrue(answer.hadithCitations.isEmpty())
+        assertTrue(answer.scholarlyOpinions?.contains("not verified", ignoreCase = true) == true)
     }
 
     @Test
-    fun `muslim ummah ai provides verified citations for zakat`() {
+    fun `muslim ummah ai does not present unverified preset citations for zakat`() {
         val answer = MuslimUmmahAiEngine.answerQuery("How is Zakat calculated?", AiMode.GENERAL)
         assertNotNull(answer)
-        assertTrue(answer.quranCitations.any { it.contains("Surah 2, Ayah 43") || it.contains("Surah 9, Ayah 60") })
-        assertTrue(answer.hadithCitations.isNotEmpty())
+        assertTrue(answer.quranCitations.isEmpty())
+        assertTrue(answer.hadithCitations.isEmpty())
+        assertTrue(answer.scholarlyOpinions?.contains("not verified", ignoreCase = true) == true)
     }
 
     @Test
