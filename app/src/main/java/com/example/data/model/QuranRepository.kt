@@ -201,17 +201,14 @@ object QuranRepository {
         )
     )
 
+    /**
+     * Returns only verses explicitly present in the verified local corpus.
+     * Never synthesize or relabel a verse from another Surah as a fallback.
+     * Missing Surah content remains empty until a complete verified dataset is bundled.
+     */
     fun getVersesForSurah(surahNumber: Int): List<Ayah> {
-        val predefined = SURAH_VERSES_MAP[surahNumber]
-        if (!predefined.isNullOrEmpty()) {
-            return predefined
-        }
-        val surah = ALL_SURAHS.find { it.number == surahNumber } ?: return emptyList()
-        return listOf(
-            Ayah(surahNumber, 1, "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ", "Bismillāhir-Raḥmānir-Raḥīm", "In the name of Allah, the Entirely Merciful, the Especially Merciful.", "شروع اللہ کے نام سے جو بڑا مہربان نہایت رحم والا ہے", "शुरू अल्लाह के नाम से जो बड़ा मेहरबान, निहायत रहम वाला है।", "Bismillah ir-Rahman ir-Rahim"),
-            Ayah(surahNumber, 2, "الْحَمْدُ لِلَّهِ الَّذِي أَنزَلَ عَلَىٰ عَبْدِهِ الْكِتَابَ وَلَمْ يَجْعَل لَّهُ عِوَجًا", "Al-ḥamdu lillāhilladhī anzala 'alā 'abdihil-kitāba wa lam yaj'al lahū 'iwajā", "[All] praise is [due] to Allah, who has sent down upon His Servant the Book and has not made therein any deviance.", "سب تعریفیں اللہ کے لیے ہیں جس نے اپنے بندے پر کتاب اتاری اور اس میں کوئی کجی نہ رکھی", "सब तारीफें अल्लाह के लिए हैं जिसने अपने बन्दे पर यह किताब उतारी।", "Alhamdu lillahi allazi anzala ala abdihil kitaab"),
-            Ayah(surahNumber, 3, "قَيِّمًا لِّيُنذِرَ بَأْسًا شَدِيدًا مِّن لَّدُنْهُ وَيُبَشِّرَ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ أَنَّ لَهُمْ أَجْرًا حَسَنًا", "Qayyimal-liyunzhira ba'san shadīdam-mil-ladunhu wa yubashshiral-mu'minīnalladhīna ya'malūnaṣ-ṣāliḥāti anna lahum ajran ḥasanā", "Straight, to warn of severe punishment from Him and to give good tidings to the believers who do righteous deeds that they will have a good reward.", "ٹھیک اور سیدھی کتاب تاکہ اپنے پاس سے سخت عذاب سے ڈرائے اور مومنوں کو خوشخبری دے۔", "सीधी सच्ची किताब ताकि सख्त अज़ाब से आगाह करे और ईमान वालों को बशारत दे।", "Seedhi sachi kitaab taake azaab se khabardaar kare aur momino ko khushkhabri de.")
-        )
+        if (ALL_SURAHS.none { it.number == surahNumber }) return emptyList()
+        return SURAH_VERSES_MAP[surahNumber].orEmpty()
     }
 
     fun getSurahsForPara(paraNumber: Int): List<Surah> {
