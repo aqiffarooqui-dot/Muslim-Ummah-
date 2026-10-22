@@ -31,8 +31,8 @@ data class HadithItem(
     val urduTranslation: String,
     val hindiTranslation: String,
     val hinglishTranslation: String = "",
-    val grade: String = "Sahih (صحيح)",
-    val reference: String = "Canonical Islamic Tradition"
+    val grade: String = "Unverified",
+    val reference: String = "Reference not yet verified"
 ) {
     fun getTranslation(lang: String): String {
         return when (lang.lowercase()) {
