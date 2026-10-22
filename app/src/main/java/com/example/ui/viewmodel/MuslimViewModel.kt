@@ -285,6 +285,16 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
+        // Publish the authenticated Firebase identity immediately so Profile does not
+        // temporarily fall back to the signed-out UI while Firestore is loading.
+        _uiState.update {
+            it.copy(
+                currentUser = user,
+                isAdmin = user.role == "ADMIN",
+                isPremium = user.isPremium
+            )
+        }
+
         viewModelScope.launch {
             val serverUser = FirebaseSyncManager.applyServerUserProfile(user)
             val isAdmin = serverUser.role == "ADMIN"
