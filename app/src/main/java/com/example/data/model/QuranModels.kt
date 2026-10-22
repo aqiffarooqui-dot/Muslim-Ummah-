@@ -62,9 +62,9 @@ data class Ayah(
     fun getTranslation(language: QuranTranslationLanguage): String {
         return when (language) {
             QuranTranslationLanguage.ENGLISH -> textEnglish
-            QuranTranslationLanguage.URDU -> textUrdu.ifBlank { textEnglish }
-            QuranTranslationLanguage.HINDI -> textHindi.ifBlank { textEnglish }
-            QuranTranslationLanguage.HINGLISH -> textHinglish.ifBlank { textEnglish }
+            QuranTranslationLanguage.URDU -> textUrdu.ifBlank { "Translation unavailable" }
+            QuranTranslationLanguage.HINDI -> textHindi.ifBlank { "Translation unavailable" }
+            QuranTranslationLanguage.HINGLISH -> textHinglish.ifBlank { "Translation unavailable" }
         }
     }
 }
