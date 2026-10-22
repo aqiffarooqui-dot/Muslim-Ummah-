@@ -47,12 +47,19 @@ class BootReceiver : BroadcastReceiver() {
             intent.action == Intent.ACTION_TIME_CHANGED
         ) {
             Log.i("BootReceiver", "Device rebooted or timezone changed. Rescheduling prayer alarms.")
-            val defaultCity = PrayerCalculator.POPULAR_CITIES.first()
+            val prefs = context.getSharedPreferences("muslim_ummah_prayer", Context.MODE_PRIVATE)
+            val savedCity = PrayerCalculator.POPULAR_CITIES.firstOrNull {
+                it.name == prefs.getString("city_name", null) &&
+                    it.country == prefs.getString("city_country", null)
+            }
+            val latitude = prefs.getFloat("city_latitude", (savedCity ?: PrayerCalculator.POPULAR_CITIES.first()).latitude.toFloat()).toDouble()
+            val longitude = prefs.getFloat("city_longitude", (savedCity ?: PrayerCalculator.POPULAR_CITIES.first()).longitude.toFloat()).toDouble()
+            val timezoneOffset = prefs.getFloat("city_timezone_offset", (savedCity ?: PrayerCalculator.POPULAR_CITIES.first()).timezoneOffsetHours.toFloat()).toDouble()
             val times = PrayerCalculator.calculateTimes(
                 calendar = Calendar.getInstance(),
-                latitude = defaultCity.latitude,
-                longitude = defaultCity.longitude,
-                timezoneOffsetHours = defaultCity.timezoneOffsetHours
+                latitude = latitude,
+                longitude = longitude,
+                timezoneOffsetHours = timezoneOffset
             )
             PrayerNotificationManager.schedulePrayerNotifications(context, times, true)
         }
