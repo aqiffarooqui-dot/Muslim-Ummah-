@@ -1,5 +1,6 @@
 package com.example.ui.util
 
+import android.Manifest
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,9 +8,11 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.example.MainActivity
 import com.example.R
 import com.example.data.model.DailyPrayerTimes
@@ -129,6 +132,10 @@ object PrayerNotificationManager {
     }
 
     fun showPrayerNotification(context: Context, prayerName: String, arabicName: String) {
+        if (!canPostNotifications(context)) {
+            Log.w(TAG, "Skipping prayer notification because POST_NOTIFICATIONS permission is not granted.")
+            return
+        }
         createNotificationChannels(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -155,6 +162,10 @@ object PrayerNotificationManager {
     }
 
     fun showDailyReminder(context: Context, title: String, message: String) {
+        if (!canPostNotifications(context)) {
+            Log.w(TAG, "Skipping reminder because POST_NOTIFICATIONS permission is not granted.")
+            return
+        }
         createNotificationChannels(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -179,6 +190,13 @@ object PrayerNotificationManager {
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(title.hashCode(), notification)
+    }
+
+    private fun canPostNotifications(context: Context): Boolean {
+        return Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     fun schedulePrayerNotifications(context: Context, prayerTimes: DailyPrayerTimes, enabled: Boolean) {
