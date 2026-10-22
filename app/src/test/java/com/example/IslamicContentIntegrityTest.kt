@@ -2,6 +2,7 @@ package com.example
 
 import com.example.data.model.HadithRepository
 import com.example.data.model.QuranRepository
+import com.example.data.subscription.SubscriptionManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -37,6 +38,15 @@ class IslamicContentIntegrityTest {
     fun invalidSurahNumberReturnsNoVerses() {
         assertTrue(QuranRepository.getVersesForSurah(0).isEmpty())
         assertTrue(QuranRepository.getVersesForSurah(115).isEmpty())
+    }
+
+    @Test
+    fun premiumCatalogContainsOnlyFourApprovedPlans() {
+        assertEquals(
+            listOf("plan_7_days", "plan_1_month", "plan_3_months", "plan_9_months"),
+            SubscriptionManager.DEFAULT_PLANS.map { it.id }
+        )
+        assertEquals(listOf(49, 129, 299, 649), SubscriptionManager.DEFAULT_PLANS.map { it.priceInr })
     }
 
     @Test
