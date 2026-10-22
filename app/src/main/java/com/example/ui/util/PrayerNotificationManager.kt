@@ -34,6 +34,18 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
                 "Daily Hadith",
                 "The Prophet (ﷺ) said: 'The best among you are those who learn the Quran and teach it.' (Sahih al-Bukhari)"
             )
+        } else if (reminderType == "DAILY_DUA") {
+            PrayerNotificationManager.showDailyReminder(
+                context,
+                "Daily Dua Reminder",
+                "Take a moment for dhikr and supplication. Verify dua wording and references in a trusted source."
+            )
+        } else if (reminderType == "TAHAJJUD") {
+            PrayerNotificationManager.showDailyReminder(
+                context,
+                "Tahajjud Reminder",
+                "A gentle reminder: prepare for voluntary night prayer before Fajr."
+            )
         } else {
             PrayerNotificationManager.showPrayerNotification(context, prayerName, arabicName)
         }
@@ -61,7 +73,25 @@ class BootReceiver : BroadcastReceiver() {
                 longitude = longitude,
                 timezoneOffsetHours = timezoneOffset
             )
-            PrayerNotificationManager.schedulePrayerNotifications(context, times, true)
+            PrayerNotificationManager.schedulePrayerNotifications(
+                context,
+                times,
+                prefs.getBoolean("prayer_notifications_enabled", true)
+            )
+            PrayerNotificationManager.scheduleDailyReminders(
+                context,
+                prefs.getBoolean("daily_quran_reminder_enabled", true),
+                prefs.getBoolean("daily_hadith_reminder_enabled", true),
+                prefs.getBoolean("daily_dua_reminder_enabled", true)
+            )
+            PrayerNotificationManager.scheduleTahajjudReminder(
+                context,
+                times.fajr.timeMillis,
+                prefs.getBoolean("tahajjud_reminder_enabled", false),
+                latitude,
+                longitude,
+                timezoneOffset
+            )
         }
     }
 }
@@ -201,76 +231,107 @@ object PrayerNotificationManager {
         }
     }
 
-    fun scheduleDailyReminders(context: Context, quranEnabled: Boolean, hadithEnabled: Boolean) {
+    fun scheduleDailyReminders(
+        context: Context,
+        quranEnabled: Boolean,
+        hadithEnabled: Boolean,
+        duaEnabled: Boolean = false
+    ) {
         createNotificationChannels(context)
+        scheduleDailyReminder(context, quranEnabled, 9, 0, 9001, "DAILY_QURAN")
+        scheduleDailyReminder(context, hadithEnabled, 20, 0, 9002, "DAILY_HADITH")
+        scheduleDailyReminder(context, duaEnabled, 12, 0, 9004, "DAILY_DUA")
+    }
+
+    private fun scheduleDailyReminder(
+        context: Context,
+        enabled: Boolean,
+        hour: Int,
+        minute: Int,
+        requestCode: Int,
+        reminderType: String
+    ) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-
-        // 1. Daily Quran reminder at 09:00 AM
-        val quranIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
-            putExtra("REMINDER_TYPE", "DAILY_QURAN")
+        val reminderIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+            putExtra("REMINDER_TYPE", reminderType)
         }
-        val quranPendingIntent = PendingIntent.getBroadcast(
+        val pendingIntent = PendingIntent.getBroadcast(
             context,
-            9001,
-            quranIntent,
+            requestCode,
+            reminderIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
-        if (!quranEnabled) {
-            alarmManager.cancel(quranPendingIntent)
-        } else {
-            val calendar = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 9)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                if (timeInMillis <= System.currentTimeMillis()) {
-                    add(Calendar.DAY_OF_YEAR, 1)
-                }
-            }
-            try {
-                alarmManager.setInexactRepeating(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.timeInMillis,
-                    AlarmManager.INTERVAL_DAY,
-                    quranPendingIntent
-                )
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not set repeating Quran reminder: ${e.message}")
-            }
+        if (!enabled) {
+            alarmManager.cancel(pendingIntent)
+            return
         }
-
-        // 2. Daily Hadith reminder at 08:00 PM
-        val hadithIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
-            putExtra("REMINDER_TYPE", "DAILY_HADITH")
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
         }
-        val hadithPendingIntent = PendingIntent.getBroadcast(
+        try {
+            alarmManager.setInexactRepeating(
+                AlarmManager.RTC_WAKEUP,
+                calendar.timeInMillis,
+                AlarmManager.INTERVAL_DAY,
+                pendingIntent
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not schedule $reminderType: ${e.message}")
+        }
+    }
+
+    fun scheduleTahajjudReminder(
+        context: Context,
+        fajrMillis: Long,
+        enabled: Boolean,
+        latitude: Double,
+        longitude: Double,
+        timezoneOffsetHours: Double
+    ) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        val intent = Intent(context, PrayerAlarmReceiver::class.java).apply {
+            putExtra("REMINDER_TYPE", "TAHAJJUD")
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
             context,
-            9002,
-            hadithIntent,
+            9003,
+            intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
-        if (!hadithEnabled) {
-            alarmManager.cancel(hadithPendingIntent)
-        } else {
-            val calendar = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 20)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                if (timeInMillis <= System.currentTimeMillis()) {
-                    add(Calendar.DAY_OF_YEAR, 1)
-                }
+        if (!enabled) {
+            alarmManager.cancel(pendingIntent)
+            return
+        }
+        val reminderOffset = 30L * 60L * 1000L
+        var triggerAt = fajrMillis - reminderOffset
+        if (triggerAt <= System.currentTimeMillis()) {
+            val tomorrow = Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_YEAR, 1)
             }
+            triggerAt = PrayerCalculator.calculateTimes(
+                calendar = tomorrow,
+                latitude = latitude,
+                longitude = longitude,
+                timezoneOffsetHours = timezoneOffsetHours
+            ).fajr.timeMillis - reminderOffset
+        }
+        if (triggerAt > System.currentTimeMillis()) {
             try {
-                alarmManager.setInexactRepeating(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.timeInMillis,
-                    AlarmManager.INTERVAL_DAY,
-                    hadithPendingIntent
-                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+                } else {
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+                }
+            } catch (e: SecurityException) {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
             } catch (e: Exception) {
-                Log.w(TAG, "Could not set repeating Hadith reminder: ${e.message}")
+                Log.w(TAG, "Could not schedule Tahajjud reminder: ${e.message}")
             }
         }
     }
+
 }
