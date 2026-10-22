@@ -80,7 +80,7 @@ The CI workflow is configured in `.github/workflows/android.yml`:
   2. Restores `debug.keystore` from base64.
   3. Executes unit tests (`./gradlew testDebugUnitTest`).
   4. Compiles the debug APK (`./gradlew assembleDebug`).
-  5. Uploads the debug APK as a downloadable GitHub Action Artifact (`MuslimUmmah-Debug-APK`).
+  5. Uploads the debug APK as a downloadable GitHub Action Artifact (`MuslimPro-Debug-APK`).
 
 ---
 
@@ -100,4 +100,4 @@ When you are ready to produce a signed release APK or Google Play bundle:
    - `KEY_ALIAS`: `upload`
    - `KEY_PASSWORD`: Key password
 
-Once these secrets are added, the GitHub Actions workflow will automatically build, sign, and upload the `MuslimUmmah-Release-APK` artifact on every push.
+Once these secrets are added, the GitHub Actions workflow will automatically build, sign, and upload the `MuslimPro-Release-APK` artifact on every push.
