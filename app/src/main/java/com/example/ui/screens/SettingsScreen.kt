@@ -733,7 +733,7 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Muslim Ummah offers 5 clear subscription plans (7 Days: ₹49, 1 Month: ₹129, 3 Months: ₹299, 9 Months: ₹649, 1 Year: ₹799) unlocking 100% ad-free experience, unlimited source-grounded Islamic AI, multiple world-class Quran reciters, advanced study tools, and cross-device cloud sync.",
+                            text = "Muslim Ummah offers 4 subscription plans (7 Days: ₹49, 1 Month: ₹129, 3 Months: ₹299, 9 Months: ₹649) unlocking 100% ad-free experience, unlimited source-grounded Islamic AI, multiple world-class Quran reciters, advanced study tools, and cross-device cloud sync.",
                             style = MaterialTheme.typography.bodySmall,
                             lineHeight = 18.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
