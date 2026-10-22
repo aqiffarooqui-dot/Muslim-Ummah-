@@ -349,6 +349,9 @@ fun MainAppScreen(
                     onRestorePurchases = { viewModel.restorePurchases() },
                     onSelectReciter = { viewModel.setReciter(it) },
                     onSelectAdhan = { viewModel.setAdhanSound(it) },
+                    onSetPrayerNotifications = { viewModel.setPrayerNotificationsEnabled(it) },
+                    onSetDailyReminders = { quran, hadith, dua -> viewModel.setDailyReminderPreferences(quran, hadith, dua) },
+                    onSetTahajjudReminder = { viewModel.setTahajjudReminderEnabled(it) },
                     onSignOut = { viewModel.signOutUser(context) }
                 )
             }
