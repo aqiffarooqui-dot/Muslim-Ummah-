@@ -173,7 +173,8 @@ object MuslimUmmahAiEngine {
             (q.length > 4 && hadith.chapterName.lowercase().split(" ").any { word -> word.length > 4 && q.contains(word) })
         }
 
-        // Case A: Found matching Surah in Quran
+        // Case A: Found matching Surah metadata. Never claim a full/verified Surah
+        // when the local dataset contains only selected excerpts.
         if (matchingSurah != null) {
             val verses = QuranRepository.getVersesForSurah(matchingSurah.number)
             val versePreview = verses.take(3).map {
@@ -182,13 +183,15 @@ object MuslimUmmahAiEngine {
 
             return AiMessage(
                 sender = "AI",
-                text = "Surah ${matchingSurah.nameEnglish} (${matchingSurah.nameArabic} - \"${matchingSurah.englishMeaning}\") is Surah #${matchingSurah.number} in the Holy Quran, containing ${matchingSurah.totalAyahs} Ayahs. It is classified as ${matchingSurah.revelationType} and situated in Juz (Para) #${matchingSurah.juz}.\n\nBelow are authentic, verified verses from this Surah with exact text and classical commentary citations.",
+                text = if (versePreview.isEmpty()) {
+                    "Surah ${matchingSurah.nameEnglish} is Surah #${matchingSurah.number} and has ${matchingSurah.totalAyahs} Ayahs. The complete verse text is not available in the current local dataset, so I will not generate or substitute verses."
+                } else {
+                    "Surah ${matchingSurah.nameEnglish} is Surah #${matchingSurah.number} and has ${matchingSurah.totalAyahs} Ayahs. The excerpts below are only the verses currently present in the local dataset; this is not a complete Surah."
+                },
                 mode = mode,
                 quranCitations = versePreview,
-                hadithCitations = listOf(
-                    "Sahih al-Bukhari • Hadith 5027 (Chapter: Virtues of the Quran • Grade: Sahih): 'The best of you are those who learn the Quran and teach it.'"
-                ),
-                scholarlyOpinions = "Reciting Surah ${matchingSurah.nameEnglish} brings immense spiritual blessings and divine tranquility. For comprehensive verse-by-verse commentary, consult Tafsir Ibn Kathir, Tafsir al-Qurtubi, and Ma'ariful Quran."
+                hadithCitations = emptyList(),
+                scholarlyOpinions = "The local Quran corpus is incomplete. Verify the complete Arabic text and translation against a trusted Mushaf before using this as a religious reference."
             )
         }
 
