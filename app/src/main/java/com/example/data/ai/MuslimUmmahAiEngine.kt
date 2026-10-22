@@ -145,7 +145,12 @@ object MuslimUmmahAiEngine {
         val matchedKey = VERIFIED_TOPICS.keys.firstOrNull { q.contains(it) }
         if (matchedKey != null) {
             val base = VERIFIED_TOPICS[matchedKey]!!
-            return base.copy(mode = mode)
+            return base.copy(
+                mode = mode,
+                quranCitations = emptyList(),
+                hadithCitations = emptyList(),
+                scholarlyOpinions = "These preset notes are not verified against a complete local source corpus. Please check primary references or consult a qualified scholar before relying on this answer."
+            )
         }
 
         // 2. RETRIEVAL STEP: Search Quran dataset
@@ -190,19 +195,19 @@ object MuslimUmmahAiEngine {
         // Case B: Found matching Hadiths
         if (matchingHadiths.isNotEmpty()) {
             val topHadith = matchingHadiths.first()
-            val hadithCitations = matchingHadiths.take(2).map { h ->
-                "${h.bookName} • ${h.hadithNumber} (Chapter: ${h.chapterName} • Grade: ${h.grade}): \"${h.englishTranslation}\""
+            val hadithCitations = matchingHadiths.filter { h ->
+                h.grade != "Unverified" && h.reference != "Reference not yet verified"
+            }.take(2).map { h ->
+                "${h.bookName} • ${h.hadithNumber} (Chapter: ${h.chapterName} • Grade: ${h.grade}; Reference: ${h.reference}): \"${h.englishTranslation}\""
             }
 
             return AiMessage(
                 sender = "AI",
-                text = "Regarding your inquiry, here is verified textual evidence from authentic Prophetic traditions in ${topHadith.bookName}:\n\n\"${topHadith.englishTranslation}\"\n\nاردو: ${topHadith.urduTranslation}\nहिंदी: ${topHadith.hindiTranslation}\nHinglish: ${topHadith.hinglishTranslation}",
+                text = "A local Hadith record matching your query was found in ${topHadith.bookName}. The local dataset is not yet complete, and this record's source/grade must be verified before treating it as an authenticated quotation.\n\n${topHadith.englishTranslation}\n\nاردو: ${topHadith.urduTranslation}\nहिंदी: ${topHadith.hindiTranslation}\nHinglish: ${topHadith.hinglishTranslation}",
                 mode = mode,
-                quranCitations = listOf(
-                    "Surah Al-Hashr (Surah 59, Ayah 7 • Juz 28): 'And whatever the Messenger has given you - take; and what he has forbidden you - refrain from.'"
-                ),
+                quranCitations = emptyList(),
                 hadithCitations = hadithCitations,
-                scholarlyOpinions = "Sanad: ${topHadith.narrator}. Reference: ${topHadith.reference}. This transmission is established in standard Islamic jurisprudence."
+                scholarlyOpinions = "Narrator listed locally: ${topHadith.narrator}. Local reference status: ${topHadith.reference}. Please verify the original collection and numbering."
             )
         }
 
