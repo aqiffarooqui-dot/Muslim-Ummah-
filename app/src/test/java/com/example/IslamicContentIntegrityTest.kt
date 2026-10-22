@@ -1,6 +1,9 @@
 package com.example
 
+import com.example.data.model.Ayah
+import com.example.data.model.HadithItem
 import com.example.data.model.HadithRepository
+import com.example.data.model.QuranTranslationLanguage
 import com.example.data.model.QuranRepository
 import com.example.data.subscription.SubscriptionManager
 import org.junit.Assert.assertEquals
@@ -53,6 +56,38 @@ class IslamicContentIntegrityTest {
     fun hadithBookCatalogContainsTheSixMajorCollections() {
         val ids = HadithRepository.MAIN_BOOKS.map { it.id }.toSet()
         assertTrue(ids.containsAll(setOf("bukhari", "muslim", "tirmidhi", "abudawud", "nasai", "ibnmajah")))
+    }
+
+    @Test
+    fun missingTranslationsAreNotSilentlyLabeledAsEnglish() {
+        val ayah = Ayah(
+            surahNumber = 2,
+            ayahNumber = 3,
+            textArabic = "test",
+            textTransliteration = "test",
+            textEnglish = "English only"
+        )
+        assertEquals("Translation unavailable", ayah.getTranslation(QuranTranslationLanguage.URDU))
+        assertEquals("Translation unavailable", ayah.getTranslation(QuranTranslationLanguage.HINDI))
+        assertEquals("Translation unavailable", ayah.getTranslation(QuranTranslationLanguage.HINGLISH))
+
+        val hadith = HadithItem(
+            id = 1,
+            bookId = "bukhari",
+            bookName = "Sahih al-Bukhari",
+            chapterId = 1,
+            chapterName = "Test chapter",
+            hadithNumber = "1",
+            narrator = "Not verified",
+            arabicText = "test",
+            englishTranslation = "English only",
+            urduTranslation = "",
+            hindiTranslation = "",
+            hinglishTranslation = ""
+        )
+        assertEquals("Translation unavailable", hadith.getTranslation("urdu"))
+        assertEquals("Translation unavailable", hadith.getTranslation("hindi"))
+        assertEquals("Translation unavailable", hadith.getTranslation("hinglish"))
     }
 
     @Test
