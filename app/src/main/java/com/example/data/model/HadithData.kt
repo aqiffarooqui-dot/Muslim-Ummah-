@@ -36,9 +36,9 @@ data class HadithItem(
 ) {
     fun getTranslation(lang: String): String {
         return when (lang.lowercase()) {
-            "urdu" -> urduTranslation.ifBlank { englishTranslation }
-            "hindi" -> hindiTranslation.ifBlank { englishTranslation }
-            "hinglish" -> hinglishTranslation.ifBlank { englishTranslation }
+            "urdu" -> urduTranslation.ifBlank { "Translation unavailable" }
+            "hindi" -> hindiTranslation.ifBlank { "Translation unavailable" }
+            "hinglish" -> hinglishTranslation.ifBlank { "Translation unavailable" }
             else -> englishTranslation
         }
     }
