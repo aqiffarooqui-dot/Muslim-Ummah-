@@ -214,39 +214,30 @@ object MuslimUmmahAiEngine {
             )
         }
 
-        // Case C: Personal Search Mode
+        // Case C: Personal Search Mode. Never imply that the partial local corpus or
+        // user bookmarks were searched unless an actual index is connected.
         if (mode == AiMode.PERSONAL_SEARCH) {
             return AiMessage(
                 sender = "AI",
-                text = "Personal Quran Search completed for \"$query\". Indexed across 114 Surahs, 30 Paras, authenticated Hadith collections, and your local bookmarks.",
+                text = "No verified local text match was found for \"$query\". The Quran and Hadith corpus available offline is incomplete, and this screen does not currently search a complete online corpus or personal bookmarks. No citation is being supplied because a matching source could not be verified.",
                 mode = mode,
-                quranCitations = listOf(
-                    "Surah Al-Baqarah (Surah 2, Ayah 255 • Juz 3) - Ayat al-Kursi",
-                    "Surah Al-Fatihah (Surah 1, Ayah 1-7 • Juz 1) - Umm al-Kitab"
-                ),
-                hadithCitations = listOf(
-                    "Sahih al-Bukhari • Hadith 5006: 'Whoever recites the last two verses of Surah Al-Baqarah at night, they will suffice him.'"
-                ),
-                scholarlyOpinions = "All your personal notes and bookmarks are securely stored on-device and in cloud backup."
+                quranCitations = emptyList(),
+                hadithCitations = emptyList(),
+                scholarlyOpinions = "Search limitation: only locally stored excerpts can be searched. Verify the topic against a trusted Mushaf or the original Hadith collection."
             )
         }
 
-        // Case D: General Islamic concepts with verified foundational grounding
+        // Case D: General Islamic concepts without a verified retrieval match.
+        // Do not attach generic citations that may not support the user's question.
         val generalIslamicKeywords = listOf("salah", "namaz", "dua", "allah", "quran", "sunnah", "prophet", "fasting", "ramadan", "hajj", "islam", "jannah", "iman", "taqwa")
         if (generalIslamicKeywords.any { q.contains(it) }) {
             return AiMessage(
                 sender = "AI",
-                text = "Regarding \"$query\": In Islamic jurisprudence, worship and daily life must be firmly grounded in the Holy Quran and the authentic Sunnah of the Prophet Muhammad (ﷺ). Below are foundational textual citations establishing this principle.",
+                text = "I understand this is an Islamic question about \"$query\". I could not retrieve enough verified source material from the current local corpus to answer it reliably, so I will not generate a ruling or attach unrelated citations. Please check a trusted primary source or consult a qualified scholar for a specific ruling.",
                 mode = mode,
-                quranCitations = listOf(
-                    "Surah An-Nahl (Surah 16, Ayah 43 • Juz 14): 'So ask the people of the message if you do not know.'",
-                    "Surah Al-Ahzab (Surah 33, Ayah 21 • Juz 21): 'There has certainly been for you in the Messenger of Allah an excellent pattern for anyone whose hope is in Allah and the Last Day.'"
-                ),
-                hadithCitations = listOf(
-                    "Sahih Muslim • Hadith 2699 (Chapter: Remembrance & Supplication • Grade: Sahih): 'Whoever follows a path in pursuit of knowledge, Allah will make a path to Paradise easy for him.'",
-                    "Sahih al-Bukhari • Hadith 1 (Chapter: Revelation • Grade: Sahih): 'Actions are judged by intentions.'"
-                ),
-                scholarlyOpinions = "Classical scholars agree that seeking foundational religious knowledge (Fard 'Ayn) is an obligation for every Muslim. For personal fatawa or specific circumstances, consultation with a recognized local Islamic scholar or mufti is recommended."
+                quranCitations = emptyList(),
+                hadithCitations = emptyList(),
+                scholarlyOpinions = "The local Quran and Hadith datasets are incomplete. No source-grounded conclusion was generated."
             )
         }
 
