@@ -727,6 +727,20 @@ private fun SurahReaderView(
                     Spacer(modifier = Modifier.height(4.dp))
                 }
 
+            // Data-integrity notice: never present a partial local catalog as a complete Surah.
+            item {
+                if (verses.size < surah.totalAyahs) {
+                    Text(
+                        text = "Content notice: ${verses.size} of ${surah.totalAyahs} ayahs are currently available in the verified local dataset. Missing ayahs are not fabricated; this Surah is incomplete in offline content.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp)
+                    )
+                }
+            }
+
             // Ayat List
             items(verses) { ayah ->
                 val ayahBookmarked = isBookmarked("QURAN_AYAH", surah.number, ayah.ayahNumber)
