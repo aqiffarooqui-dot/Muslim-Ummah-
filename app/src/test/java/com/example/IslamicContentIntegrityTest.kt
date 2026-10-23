@@ -38,6 +38,19 @@ class IslamicContentIntegrityTest {
     }
 
     @Test
+    fun quranCompletenessCountsMissingUniqueAyahNumbers() {
+        assertEquals(0, QuranRepository.getMissingAyahCount(1))
+        assertEquals(283, QuranRepository.getMissingAyahCount(2))
+        assertEquals(0, QuranRepository.getMissingAyahCount(115))
+        QuranRepository.ALL_SURAHS.forEach { surah ->
+            assertTrue(
+                "Missing Ayah count must stay within valid bounds for Surah ${surah.number}",
+                QuranRepository.getMissingAyahCount(surah.number) in 0..surah.totalAyahs
+            )
+        }
+    }
+
+    @Test
     fun invalidSurahNumberReturnsNoVerses() {
         assertTrue(QuranRepository.getVersesForSurah(0).isEmpty())
         assertTrue(QuranRepository.getVersesForSurah(115).isEmpty())
