@@ -162,6 +162,31 @@ fun MushafPageView(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
+                    // Integrity notice: never present a partial local corpus as a complete Mushaf.
+                    if (verses.size < surah.totalAyahs) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            color = Color(0xFFFFF1D6),
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFB7791F))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Incomplete offline Quran data",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF7C4A03)
+                                )
+                                Text(
+                                    text = "This app currently has ${verses.size} of ${surah.totalAyahs} expected ayahs stored for this Surah. ${surah.totalAyahs - verses.size} ayahs are missing from the local dataset. Missing Quran text is not generated or filled in.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF7C4A03)
+                                )
+                            }
+                        }
+                    }
+
                     // Continuous Flowing Uthmani Verses
                     val annotatedText = buildMushafAnnotatedText(
                         verses = verses,
