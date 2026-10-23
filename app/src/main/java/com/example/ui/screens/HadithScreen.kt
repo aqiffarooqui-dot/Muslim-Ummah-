@@ -696,7 +696,7 @@ private fun HadithCollectionCard(
                         color = MaterialTheme.colorScheme.surface
                     ) {
                         Text(
-                            text = book.hadithCountApprox,
+                            text = "In app: ${HadithRepository.getHadithsForBook(book.id).size} Hadiths",
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
@@ -707,7 +707,18 @@ private fun HadithCollectionCard(
                         color = MaterialTheme.colorScheme.surface
                     ) {
                         Text(
-                            text = "${book.totalChapters} Chapters",
+                            text = "Approx. collection total: ${book.hadithCountApprox}",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Text(
+                            text = "${HadithRepository.getChaptersForBook(book.id).size} chapters listed in app",
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
