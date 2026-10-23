@@ -211,6 +211,20 @@ object QuranRepository {
         return SURAH_VERSES_MAP[surahNumber].orEmpty()
     }
 
+    /**
+     * Counts missing Ayah numbers rather than comparing list size alone.
+     * Duplicate or out-of-range records must never make an incomplete Surah look complete.
+     */
+    fun getMissingAyahCount(surahNumber: Int): Int {
+        val surah = ALL_SURAHS.find { it.number == surahNumber } ?: return 0
+        val presentNumbers = getVersesForSurah(surahNumber)
+            .asSequence()
+            .filter { it.surahNumber == surahNumber && it.ayahNumber in 1..surah.totalAyahs }
+            .map { it.ayahNumber }
+            .toSet()
+        return surah.totalAyahs - presentNumbers.size
+    }
+
     fun getSurahsForPara(paraNumber: Int): List<Surah> {
         val para = ALL_PARAS.find { it.number == paraNumber } ?: return emptyList()
         return ALL_SURAHS.filter { it.number in para.surahsInPara }
