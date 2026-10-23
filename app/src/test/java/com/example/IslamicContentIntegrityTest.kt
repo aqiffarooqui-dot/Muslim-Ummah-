@@ -28,6 +28,36 @@ class IslamicContentIntegrityTest {
         assertEquals((1..30).toList(), QuranRepository.ALL_PARAS.map { it.number })
     }
 
+
+    @Test
+    fun quranMetadataHasExpectedTotalAyahCountAndValidPerSurahRanges() {
+        assertEquals(6236, QuranRepository.ALL_SURAHS.sumOf { it.totalAyahs })
+        QuranRepository.ALL_SURAHS.forEach { surah ->
+            assertTrue("Surah number must be valid", surah.number in 1..114)
+            assertTrue("Surah name must not be blank for ${surah.number}", surah.nameArabic.isNotBlank())
+            assertTrue("Surah transliterated name must not be blank for ${surah.number}", surah.nameEnglish.isNotBlank())
+            assertTrue("Surah Ayah count must be positive for ${surah.number}", surah.totalAyahs > 0)
+            assertTrue("Revelation type must be known for ${surah.number}", surah.revelationType in setOf("Makki", "Madani"))
+        }
+    }
+
+    @Test
+    fun localQuranRecordsHaveUniqueAyahNumbersAndRequiredText() {
+        QuranRepository.ALL_SURAHS.forEach { surah ->
+            val verses = QuranRepository.getVersesForSurah(surah.number)
+            assertEquals(
+                "Duplicate local Ayah number in Surah ${surah.number}",
+                verses.map { it.ayahNumber }.distinct().size,
+                verses.size
+            )
+            verses.forEach { ayah ->
+                assertTrue("Arabic text missing at ${surah.number}:${ayah.ayahNumber}", ayah.textArabic.isNotBlank())
+                assertTrue("English text missing at ${surah.number}:${ayah.ayahNumber}", ayah.textEnglish.isNotBlank())
+                assertTrue("Transliteration missing at ${surah.number}:${ayah.ayahNumber}", ayah.textTransliteration.isNotBlank())
+            }
+        }
+    }
+
     @Test
     fun quranVerseResultsNeverClaimAnotherSurahNumber() {
         QuranRepository.ALL_SURAHS.forEach { surah ->
