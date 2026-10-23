@@ -742,15 +742,19 @@ private fun HadithDetailCard(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
+                    val gradeIsUnverified = hadith.grade.equals("Unverified", ignoreCase = true) ||
+                        hadith.grade.isBlank()
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = EmeraldPrimary.copy(alpha = 0.15f)
+                        color = if (gradeIsUnverified) MaterialTheme.colorScheme.errorContainer
+                            else EmeraldPrimary.copy(alpha = 0.15f)
                     ) {
                         Text(
-                            text = hadith.grade,
+                            text = if (gradeIsUnverified) "Grade unverified" else hadith.grade,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = EmeraldPrimary,
+                            color = if (gradeIsUnverified) MaterialTheme.colorScheme.onErrorContainer
+                                else EmeraldPrimary,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         )
                     }
@@ -879,11 +883,18 @@ private fun HadithDetailCard(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // Reference Badge
+            // Reference badge: explicitly disclose placeholder/unverified references.
+            val referenceIsUnverified = hadith.reference.contains("not yet verified", ignoreCase = true) ||
+                hadith.reference.isBlank()
             Text(
-                text = "Reference: ${hadith.reference}",
+                text = if (referenceIsUnverified) {
+                    "Reference: Not yet verified — confirm against the original collection before relying on this citation."
+                } else {
+                    "Reference: ${hadith.reference}"
+                },
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline
+                color = if (referenceIsUnverified) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.outline
             )
 
             Spacer(modifier = Modifier.height(12.dp))
