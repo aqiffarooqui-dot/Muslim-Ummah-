@@ -141,15 +141,17 @@ object MuslimUmmahAiEngine {
     fun answerQuery(query: String, mode: AiMode): AiMessage {
         val q = query.trim().lowercase()
 
-        // 1. Direct verified topic match
+        // 1. Preset topic detection is not source verification. Do not return
+        // hardcoded religious advice when its citations have not been validated.
         val matchedKey = VERIFIED_TOPICS.keys.firstOrNull { q.contains(it) }
         if (matchedKey != null) {
-            val base = VERIFIED_TOPICS[matchedKey]!!
-            return base.copy(
+            return AiMessage(
+                sender = "AI",
+                text = "I recognized the topic \"$matchedKey\", but its saved notes are not currently verified against a complete trusted source corpus. To avoid giving you an unsupported religious answer, I am not presenting those notes as guidance. Please verify the relevant Quran ayah or original Hadith reference, or consult a qualified scholar.",
                 mode = mode,
                 quranCitations = emptyList(),
                 hadithCitations = emptyList(),
-                scholarlyOpinions = "These preset notes are not verified against a complete local source corpus. Please check primary references or consult a qualified scholar before relying on this answer."
+                scholarlyOpinions = "No verified source-grounded answer was generated for this topic."
             )
         }
 
