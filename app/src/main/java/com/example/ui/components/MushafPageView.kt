@@ -163,7 +163,8 @@ fun MushafPageView(
                     }
 
                     // Integrity notice: never present a partial local corpus as a complete Mushaf.
-                    if (verses.size < surah.totalAyahs) {
+                    val missingAyahs = com.example.data.model.QuranRepository.getMissingAyahCount(surah.number)
+                    if (missingAyahs > 0) {
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -179,7 +180,7 @@ fun MushafPageView(
                                     color = Color(0xFF7C4A03)
                                 )
                                 Text(
-                                    text = "This app currently has ${verses.size} of ${surah.totalAyahs} expected ayahs stored for this Surah. ${surah.totalAyahs - verses.size} ayahs are missing from the local dataset. Missing Quran text is not generated or filled in.",
+                                    text = "This app currently has ${surah.totalAyahs - missingAyahs} of ${surah.totalAyahs} expected ayah numbers stored for this Surah. ${missingAyahs} ayahs are missing from the local dataset. Missing Quran text is not generated or filled in.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF7C4A03)
                                 )
