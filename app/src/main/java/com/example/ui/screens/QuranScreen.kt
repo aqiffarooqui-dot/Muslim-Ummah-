@@ -172,7 +172,7 @@ fun QuranScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "30 Paras (Juz) • 114 Surahs • Arabic Text & Multi-Language Translations",
+                    text = "114 Surah & 30 Juz index • Partial offline Ayah excerpts • Translation availability varies",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
