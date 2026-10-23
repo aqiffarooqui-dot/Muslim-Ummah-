@@ -260,7 +260,7 @@ class ExampleRobolectricTest {
         assertNotNull(answer)
         assertTrue(answer.quranCitations.isEmpty())
         assertTrue(answer.hadithCitations.isEmpty())
-        assertTrue(answer.scholarlyOpinions?.contains("not verified", ignoreCase = true) == true)
+        assertTrue(answer.text.contains("not currently verified", ignoreCase = true))
     }
 
     @Test
@@ -269,7 +269,7 @@ class ExampleRobolectricTest {
         assertNotNull(answer)
         assertTrue(answer.quranCitations.isEmpty())
         assertTrue(answer.hadithCitations.isEmpty())
-        assertTrue(answer.scholarlyOpinions?.contains("not verified", ignoreCase = true) == true)
+        assertTrue(answer.text.contains("not currently verified", ignoreCase = true))
     }
 
     @Test
