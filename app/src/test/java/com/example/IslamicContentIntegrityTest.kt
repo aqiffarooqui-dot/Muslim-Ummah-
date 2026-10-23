@@ -53,6 +53,15 @@ class IslamicContentIntegrityTest {
     }
 
     @Test
+    fun unverifiedPresetTopicsAreNotPresentedAsReligiousGuidance() {
+        val answer = MuslimUmmahAiEngine.answerQuery("How should I calculate zakat?", AiMode.GENERAL)
+        assertTrue(answer.quranCitations.isEmpty())
+        assertTrue(answer.hadithCitations.isEmpty())
+        assertTrue(answer.text.contains("not currently verified"))
+        assertTrue(answer.text.contains("not presenting those notes as guidance"))
+    }
+
+    @Test
     fun personalSearchDoesNotInventQuranOrHadithCitations() {
         val answer = MuslimUmmahAiEngine.answerQuery(
             "find something about a topic missing from local corpus",
