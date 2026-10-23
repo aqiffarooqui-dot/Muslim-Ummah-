@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,9 @@ fun SettingsScreen(
     onRestorePurchases: () -> Unit = {},
     onSelectReciter: (String) -> Unit = {},
     onSelectAdhan: (String) -> Unit = {},
+    onSetPrayerNotifications: (Boolean) -> Unit = {},
+    onSetDailyReminders: (Boolean, Boolean, Boolean) -> Unit = { _, _, _ -> },
+    onSetTahajjudReminder: (Boolean) -> Unit = {},
     onSignOut: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -55,12 +59,16 @@ fun SettingsScreen(
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
 
-    // Notification Toggles State
-    var prayerNotifsEnabled by remember { mutableStateOf(true) }
-    var dailyQuranReminder by remember { mutableStateOf(true) }
-    var dailyHadithReminder by remember { mutableStateOf(true) }
-    var dailyDuaReminder by remember { mutableStateOf(true) }
-    var tahajjudReminder by remember { mutableStateOf(false) }
+    // Notification preferences persist across screen recreation and device restarts.
+    val context = LocalContext.current
+    val notificationPrefs = remember(context) {
+        context.getSharedPreferences("muslim_ummah_prayer", android.content.Context.MODE_PRIVATE)
+    }
+    var prayerNotifsEnabled by remember { mutableStateOf(notificationPrefs.getBoolean("prayer_notifications_enabled", true)) }
+    var dailyQuranReminder by remember { mutableStateOf(notificationPrefs.getBoolean("daily_quran_reminder_enabled", true)) }
+    var dailyHadithReminder by remember { mutableStateOf(notificationPrefs.getBoolean("daily_hadith_reminder_enabled", true)) }
+    var dailyDuaReminder by remember { mutableStateOf(notificationPrefs.getBoolean("daily_dua_reminder_enabled", true)) }
+    var tahajjudReminder by remember { mutableStateOf(notificationPrefs.getBoolean("tahajjud_reminder_enabled", false)) }
 
     val recitersList = listOf(
         "Sheikh Mishary Rashid Alafasy",
@@ -303,28 +311,35 @@ fun SettingsScreen(
                         title = "Prayer Adhan Notifications",
                         subtitle = "Alert at Fajr, Dhuhr, Asr, Maghrib, Isha",
                         checked = prayerNotifsEnabled,
-                        onCheckedChange = { prayerNotifsEnabled = it }
+                        onCheckedChange = { prayerNotifsEnabled = it; onSetPrayerNotifications(it) }
                     )
                     Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
                     NotificationToggleRow(
                         title = "Daily Quran Ayah Reminder",
                         subtitle = "Daily inspiration verse morning reminder",
                         checked = dailyQuranReminder,
-                        onCheckedChange = { dailyQuranReminder = it }
+                        onCheckedChange = { dailyQuranReminder = it; onSetDailyReminders(it, dailyHadithReminder, dailyDuaReminder) }
                     )
                     Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
                     NotificationToggleRow(
                         title = "Daily Hadith Reminder",
                         subtitle = "Prophetic wisdom from Kutub al-Sittah",
                         checked = dailyHadithReminder,
-                        onCheckedChange = { dailyHadithReminder = it }
+                        onCheckedChange = { dailyHadithReminder = it; onSetDailyReminders(dailyQuranReminder, it, dailyDuaReminder) }
+                    )
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
+                    NotificationToggleRow(
+                        title = "Daily Dua Reminder",
+                        subtitle = "Daily dhikr and supplication reminder",
+                        checked = dailyDuaReminder,
+                        onCheckedChange = { dailyDuaReminder = it; onSetDailyReminders(dailyQuranReminder, dailyHadithReminder, it) }
                     )
                     Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
                     NotificationToggleRow(
                         title = "Tahajjud & Night Vigil Reminder",
                         subtitle = "Pre-Fajr wake up notification",
                         checked = tahajjudReminder,
-                        onCheckedChange = { tahajjudReminder = it }
+                        onCheckedChange = { tahajjudReminder = it; onSetTahajjudReminder(it) }
                     )
                 }
             }
@@ -733,7 +748,7 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Muslim Ummah offers 5 clear subscription plans (7 Days: ₹49, 1 Month: ₹129, 3 Months: ₹299, 9 Months: ₹649, 1 Year: ₹799) unlocking 100% ad-free experience, unlimited source-grounded Islamic AI, multiple world-class Quran reciters, advanced study tools, and cross-device cloud sync.",
+                            text = "Muslim Ummah offers 4 subscription plans (7 Days: ₹49, 1 Month: ₹129, 3 Months: ₹299, 9 Months: ₹649) with ad-free Premium access, Quran reciters, advanced study tools, and cross-device cloud sync.",
                             style = MaterialTheme.typography.bodySmall,
                             lineHeight = 18.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

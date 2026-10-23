@@ -187,9 +187,25 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
     val hadithNotes: StateFlow<List<HadithNote>>
 
     private var timerJob: Job? = null
+    private var lastAlarmScheduleFingerprint: String? = null
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
     init {
+        val prayerPrefs = application.getSharedPreferences("muslim_ummah_prayer", Context.MODE_PRIVATE)
+        if (prayerPrefs.contains("city_latitude") && prayerPrefs.contains("city_longitude")) {
+            val fallbackCity = PrayerCalculator.POPULAR_CITIES.first()
+            _uiState.update {
+                it.copy(
+                    selectedCity = CityLocation(
+                        name = prayerPrefs.getString("city_name", fallbackCity.name) ?: fallbackCity.name,
+                        country = prayerPrefs.getString("city_country", fallbackCity.country) ?: fallbackCity.country,
+                        latitude = prayerPrefs.getFloat("city_latitude", fallbackCity.latitude.toFloat()).toDouble(),
+                        longitude = prayerPrefs.getFloat("city_longitude", fallbackCity.longitude.toFloat()).toDouble(),
+                        timezoneOffsetHours = prayerPrefs.getFloat("city_timezone_offset", fallbackCity.timezoneOffsetHours.toFloat()).toDouble()
+                    )
+                )
+            }
+        }
         val database = AppDatabase.getDatabase(application)
         repository = MuslimRepository(database.muslimDao())
 
@@ -283,6 +299,16 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             }
             SubscriptionManager.updateEntitlementForUser("", false, "Free", null)
             return
+        }
+
+        // Publish the authenticated Firebase identity immediately so Profile does not
+        // temporarily fall back to the signed-out UI while Firestore is loading.
+        _uiState.update {
+            it.copy(
+                currentUser = user,
+                isAdmin = user.role == "ADMIN",
+                isPremium = user.isPremium
+            )
         }
 
         viewModelScope.launch {
@@ -784,6 +810,15 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setCity(city: CityLocation) {
+        // Persist the selected/GPS city so reboot and timezone rescheduling use the same location.
+        getApplication<Application>().getSharedPreferences("muslim_ummah_prayer", Context.MODE_PRIVATE)
+            .edit()
+            .putString("city_name", city.name)
+            .putString("city_country", city.country)
+            .putFloat("city_latitude", city.latitude.toFloat())
+            .putFloat("city_longitude", city.longitude.toFloat())
+            .putFloat("city_timezone_offset", city.timezoneOffsetHours.toFloat())
+            .apply()
         _uiState.update { it.copy(selectedCity = city) }
         recalculatePrayerTimes()
         recalculateQibla()
@@ -796,6 +831,31 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setJuristicMethod(method: JuristicMethod) {
         _uiState.update { it.copy(juristicMethod = method) }
+        recalculatePrayerTimes()
+    }
+
+    fun setPrayerNotificationsEnabled(enabled: Boolean) {
+        getApplication<Application>().getSharedPreferences("muslim_ummah_prayer", Context.MODE_PRIVATE)
+            .edit().putBoolean("prayer_notifications_enabled", enabled).apply()
+        lastAlarmScheduleFingerprint = null
+        recalculatePrayerTimes()
+    }
+
+    fun setDailyReminderPreferences(quranEnabled: Boolean, hadithEnabled: Boolean, duaEnabled: Boolean) {
+        val app = getApplication<Application>()
+        app.getSharedPreferences("muslim_ummah_prayer", Context.MODE_PRIVATE).edit()
+            .putBoolean("daily_quran_reminder_enabled", quranEnabled)
+            .putBoolean("daily_hadith_reminder_enabled", hadithEnabled)
+            .putBoolean("daily_dua_reminder_enabled", duaEnabled)
+            .apply()
+        com.example.ui.util.PrayerNotificationManager.scheduleDailyReminders(app, quranEnabled, hadithEnabled, duaEnabled)
+        lastAlarmScheduleFingerprint = null
+    }
+
+    fun setTahajjudReminderEnabled(enabled: Boolean) {
+        getApplication<Application>().getSharedPreferences("muslim_ummah_prayer", Context.MODE_PRIVATE)
+            .edit().putBoolean("tahajjud_reminder_enabled", enabled).apply()
+        lastAlarmScheduleFingerprint = null
         recalculatePrayerTimes()
     }
 
@@ -816,11 +876,27 @@ class MuslimViewModel(application: Application) : AndroidViewModel(application) 
             )
         }
         try {
-            com.example.ui.util.PrayerNotificationManager.schedulePrayerNotifications(
-                getApplication(),
-                times,
-                true
-            )
+            val app = getApplication<Application>()
+            val prefs = app.getSharedPreferences("muslim_ummah_prayer", Context.MODE_PRIVATE)
+            val prayerEnabled = prefs.getBoolean("prayer_notifications_enabled", true)
+            val quranEnabled = prefs.getBoolean("daily_quran_reminder_enabled", true)
+            val hadithEnabled = prefs.getBoolean("daily_hadith_reminder_enabled", true)
+            val duaEnabled = prefs.getBoolean("daily_dua_reminder_enabled", true)
+            val tahajjudEnabled = prefs.getBoolean("tahajjud_reminder_enabled", false)
+            val fingerprint = listOf(
+                dateFormat.format(times.date), city.name, city.latitude, city.longitude,
+                _uiState.value.calculationMethod.name, _uiState.value.juristicMethod.name,
+                prayerEnabled, quranEnabled, hadithEnabled, duaEnabled, tahajjudEnabled
+            ).joinToString("|")
+            if (fingerprint != lastAlarmScheduleFingerprint) {
+                com.example.ui.util.PrayerNotificationManager.schedulePrayerNotifications(app, times, prayerEnabled)
+                com.example.ui.util.PrayerNotificationManager.scheduleDailyReminders(app, quranEnabled, hadithEnabled, duaEnabled)
+                com.example.ui.util.PrayerNotificationManager.scheduleTahajjudReminder(
+                    app, times.fajr.timeMillis, tahajjudEnabled,
+                    city.latitude, city.longitude, city.timezoneOffsetHours
+                )
+                lastAlarmScheduleFingerprint = fingerprint
+            }
         } catch (e: Throwable) {
             // Gracefully ignore during unit tests / headless environments
         }

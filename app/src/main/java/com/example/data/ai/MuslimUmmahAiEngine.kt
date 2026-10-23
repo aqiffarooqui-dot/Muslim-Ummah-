@@ -141,11 +141,18 @@ object MuslimUmmahAiEngine {
     fun answerQuery(query: String, mode: AiMode): AiMessage {
         val q = query.trim().lowercase()
 
-        // 1. Direct verified topic match
+        // 1. Preset topic detection is not source verification. Do not return
+        // hardcoded religious advice when its citations have not been validated.
         val matchedKey = VERIFIED_TOPICS.keys.firstOrNull { q.contains(it) }
         if (matchedKey != null) {
-            val base = VERIFIED_TOPICS[matchedKey]!!
-            return base.copy(mode = mode)
+            return AiMessage(
+                sender = "AI",
+                text = "I recognized the topic \"$matchedKey\", but its saved notes are not currently verified against a complete trusted source corpus. To avoid giving you an unsupported religious answer, I am not presenting those notes as guidance. Please verify the relevant Quran ayah or original Hadith reference, or consult a qualified scholar.",
+                mode = mode,
+                quranCitations = emptyList(),
+                hadithCitations = emptyList(),
+                scholarlyOpinions = "No verified source-grounded answer was generated for this topic."
+            )
         }
 
         // 2. RETRIEVAL STEP: Search Quran dataset
@@ -168,7 +175,8 @@ object MuslimUmmahAiEngine {
             (q.length > 4 && hadith.chapterName.lowercase().split(" ").any { word -> word.length > 4 && q.contains(word) })
         }
 
-        // Case A: Found matching Surah in Quran
+        // Case A: Found matching Surah metadata. Never claim a full/verified Surah
+        // when the local dataset contains only selected excerpts.
         if (matchingSurah != null) {
             val verses = QuranRepository.getVersesForSurah(matchingSurah.number)
             val versePreview = verses.take(3).map {
@@ -177,68 +185,61 @@ object MuslimUmmahAiEngine {
 
             return AiMessage(
                 sender = "AI",
-                text = "Surah ${matchingSurah.nameEnglish} (${matchingSurah.nameArabic} - \"${matchingSurah.englishMeaning}\") is Surah #${matchingSurah.number} in the Holy Quran, containing ${matchingSurah.totalAyahs} Ayahs. It is classified as ${matchingSurah.revelationType} and situated in Juz (Para) #${matchingSurah.juz}.\n\nBelow are authentic, verified verses from this Surah with exact text and classical commentary citations.",
+                text = if (versePreview.isEmpty()) {
+                    "Surah ${matchingSurah.nameEnglish} is Surah #${matchingSurah.number} and has ${matchingSurah.totalAyahs} Ayahs. The complete verse text is not available in the current local dataset, so I will not generate or substitute verses."
+                } else {
+                    "Surah ${matchingSurah.nameEnglish} is Surah #${matchingSurah.number} and has ${matchingSurah.totalAyahs} Ayahs. The excerpts below are only the verses currently present in the local dataset; this is not a complete Surah."
+                },
                 mode = mode,
                 quranCitations = versePreview,
-                hadithCitations = listOf(
-                    "Sahih al-Bukhari • Hadith 5027 (Chapter: Virtues of the Quran • Grade: Sahih): 'The best of you are those who learn the Quran and teach it.'"
-                ),
-                scholarlyOpinions = "Reciting Surah ${matchingSurah.nameEnglish} brings immense spiritual blessings and divine tranquility. For comprehensive verse-by-verse commentary, consult Tafsir Ibn Kathir, Tafsir al-Qurtubi, and Ma'ariful Quran."
+                hadithCitations = emptyList(),
+                scholarlyOpinions = "The local Quran corpus is incomplete. Verify the complete Arabic text and translation against a trusted Mushaf before using this as a religious reference."
             )
         }
 
         // Case B: Found matching Hadiths
         if (matchingHadiths.isNotEmpty()) {
             val topHadith = matchingHadiths.first()
-            val hadithCitations = matchingHadiths.take(2).map { h ->
-                "${h.bookName} • ${h.hadithNumber} (Chapter: ${h.chapterName} • Grade: ${h.grade}): \"${h.englishTranslation}\""
+            val hadithCitations = matchingHadiths.filter { h ->
+                h.grade != "Unverified" && h.reference != "Reference not yet verified"
+            }.take(2).map { h ->
+                "${h.bookName} • ${h.hadithNumber} (Chapter: ${h.chapterName} • Grade: ${h.grade}; Reference: ${h.reference}): \"${h.englishTranslation}\""
             }
 
             return AiMessage(
                 sender = "AI",
-                text = "Regarding your inquiry, here is verified textual evidence from authentic Prophetic traditions in ${topHadith.bookName}:\n\n\"${topHadith.englishTranslation}\"\n\nاردو: ${topHadith.urduTranslation}\nहिंदी: ${topHadith.hindiTranslation}\nHinglish: ${topHadith.hinglishTranslation}",
+                text = "A local Hadith record matching your query was found in ${topHadith.bookName}. The local dataset is not yet complete, and this record's source/grade must be verified before treating it as an authenticated quotation.\n\n${topHadith.englishTranslation}\n\nاردو: ${topHadith.urduTranslation}\nहिंदी: ${topHadith.hindiTranslation}\nHinglish: ${topHadith.hinglishTranslation}",
                 mode = mode,
-                quranCitations = listOf(
-                    "Surah Al-Hashr (Surah 59, Ayah 7 • Juz 28): 'And whatever the Messenger has given you - take; and what he has forbidden you - refrain from.'"
-                ),
+                quranCitations = emptyList(),
                 hadithCitations = hadithCitations,
-                scholarlyOpinions = "Sanad: ${topHadith.narrator}. Reference: ${topHadith.reference}. This transmission is established in standard Islamic jurisprudence."
+                scholarlyOpinions = "Narrator listed locally: ${topHadith.narrator}. Local reference status: ${topHadith.reference}. Please verify the original collection and numbering."
             )
         }
 
-        // Case C: Personal Search Mode
+        // Case C: Personal Search Mode. Never imply that the partial local corpus or
+        // user bookmarks were searched unless an actual index is connected.
         if (mode == AiMode.PERSONAL_SEARCH) {
             return AiMessage(
                 sender = "AI",
-                text = "Personal Quran Search completed for \"$query\". Indexed across 114 Surahs, 30 Paras, authenticated Hadith collections, and your local bookmarks.",
+                text = "No verified local text match was found for \"$query\". The Quran and Hadith corpus available offline is incomplete, and this screen does not currently search a complete online corpus or personal bookmarks. No citation is being supplied because a matching source could not be verified.",
                 mode = mode,
-                quranCitations = listOf(
-                    "Surah Al-Baqarah (Surah 2, Ayah 255 • Juz 3) - Ayat al-Kursi",
-                    "Surah Al-Fatihah (Surah 1, Ayah 1-7 • Juz 1) - Umm al-Kitab"
-                ),
-                hadithCitations = listOf(
-                    "Sahih al-Bukhari • Hadith 5006: 'Whoever recites the last two verses of Surah Al-Baqarah at night, they will suffice him.'"
-                ),
-                scholarlyOpinions = "All your personal notes and bookmarks are securely stored on-device and in cloud backup."
+                quranCitations = emptyList(),
+                hadithCitations = emptyList(),
+                scholarlyOpinions = "Search limitation: only locally stored excerpts can be searched. Verify the topic against a trusted Mushaf or the original Hadith collection."
             )
         }
 
-        // Case D: General Islamic concepts with verified foundational grounding
+        // Case D: General Islamic concepts without a verified retrieval match.
+        // Do not attach generic citations that may not support the user's question.
         val generalIslamicKeywords = listOf("salah", "namaz", "dua", "allah", "quran", "sunnah", "prophet", "fasting", "ramadan", "hajj", "islam", "jannah", "iman", "taqwa")
         if (generalIslamicKeywords.any { q.contains(it) }) {
             return AiMessage(
                 sender = "AI",
-                text = "Regarding \"$query\": In Islamic jurisprudence, worship and daily life must be firmly grounded in the Holy Quran and the authentic Sunnah of the Prophet Muhammad (ﷺ). Below are foundational textual citations establishing this principle.",
+                text = "I understand this is an Islamic question about \"$query\". I could not retrieve enough verified source material from the current local corpus to answer it reliably, so I will not generate a ruling or attach unrelated citations. Please check a trusted primary source or consult a qualified scholar for a specific ruling.",
                 mode = mode,
-                quranCitations = listOf(
-                    "Surah An-Nahl (Surah 16, Ayah 43 • Juz 14): 'So ask the people of the message if you do not know.'",
-                    "Surah Al-Ahzab (Surah 33, Ayah 21 • Juz 21): 'There has certainly been for you in the Messenger of Allah an excellent pattern for anyone whose hope is in Allah and the Last Day.'"
-                ),
-                hadithCitations = listOf(
-                    "Sahih Muslim • Hadith 2699 (Chapter: Remembrance & Supplication • Grade: Sahih): 'Whoever follows a path in pursuit of knowledge, Allah will make a path to Paradise easy for him.'",
-                    "Sahih al-Bukhari • Hadith 1 (Chapter: Revelation • Grade: Sahih): 'Actions are judged by intentions.'"
-                ),
-                scholarlyOpinions = "Classical scholars agree that seeking foundational religious knowledge (Fard 'Ayn) is an obligation for every Muslim. For personal fatawa or specific circumstances, consultation with a recognized local Islamic scholar or mufti is recommended."
+                quranCitations = emptyList(),
+                hadithCitations = emptyList(),
+                scholarlyOpinions = "The local Quran and Hadith datasets are incomplete. No source-grounded conclusion was generated."
             )
         }
 

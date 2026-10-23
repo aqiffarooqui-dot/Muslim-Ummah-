@@ -102,7 +102,7 @@ interface SubscriptionRepository {
 
 object SubscriptionManager : SubscriptionRepository {
 
-    // Default configuration for the 5 official Muslim Ummah plans
+    // Default configuration for the four approved Muslim Ummah plans
     val DEFAULT_PLANS = listOf(
         SubscriptionPlan(
             id = "plan_7_days",
@@ -137,15 +137,6 @@ object SubscriptionManager : SubscriptionRepository {
             priceFormatted = "₹649",
             periodDescription = "Save 44% • ₹72/mo"
         ),
-        SubscriptionPlan(
-            id = "plan_1_year",
-            title = "1 Year",
-            durationDays = 365,
-            priceInr = 799,
-            priceFormatted = "₹799",
-            periodDescription = "Save 48% • ₹66/mo",
-            badge = "BEST VALUE"
-        )
     )
 
     // DEFAULT ENTITLEMENT MUST ALWAYS INITIALIZE AS FREE

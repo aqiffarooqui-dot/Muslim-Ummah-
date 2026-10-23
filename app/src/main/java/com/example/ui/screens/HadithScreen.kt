@@ -532,6 +532,32 @@ fun HadithScreen(
             }
             // Collections Cards Mode
             else {
+                // Be transparent that the current offline content is a curated sample, not complete collections.
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = "Offline collection is incomplete",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Currently available locally: ${HadithRepository.ALL_HADITHS.size} curated Hadith entries across ${HadithRepository.MAIN_BOOKS.size} collections. The totals shown on collection cards are collection-wide estimates, not the number stored in this app. Check each source and grading before relying on a citation.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
                 items(HadithRepository.MAIN_BOOKS) { book ->
                     HadithCollectionCard(
                         book = book,
@@ -670,7 +696,7 @@ private fun HadithCollectionCard(
                         color = MaterialTheme.colorScheme.surface
                     ) {
                         Text(
-                            text = book.hadithCountApprox,
+                            text = "In app: ${HadithRepository.getHadithsForBook(book.id).size} Hadiths",
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
@@ -681,7 +707,18 @@ private fun HadithCollectionCard(
                         color = MaterialTheme.colorScheme.surface
                     ) {
                         Text(
-                            text = "${book.totalChapters} Chapters",
+                            text = "Approx. collection total: ${book.hadithCountApprox}",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Text(
+                            text = "${HadithRepository.getChaptersForBook(book.id).size} chapters listed in app",
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
@@ -742,15 +779,19 @@ private fun HadithDetailCard(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
+                    val gradeIsUnverified = hadith.grade.equals("Unverified", ignoreCase = true) ||
+                        hadith.grade.isBlank()
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = EmeraldPrimary.copy(alpha = 0.15f)
+                        color = if (gradeIsUnverified) MaterialTheme.colorScheme.errorContainer
+                            else EmeraldPrimary.copy(alpha = 0.15f)
                     ) {
                         Text(
-                            text = hadith.grade,
+                            text = if (gradeIsUnverified) "Grade unverified" else hadith.grade,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = EmeraldPrimary,
+                            color = if (gradeIsUnverified) MaterialTheme.colorScheme.onErrorContainer
+                                else EmeraldPrimary,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         )
                     }
@@ -879,11 +920,18 @@ private fun HadithDetailCard(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // Reference Badge
+            // Reference badge: explicitly disclose placeholder/unverified references.
+            val referenceIsUnverified = hadith.reference.contains("not yet verified", ignoreCase = true) ||
+                hadith.reference.isBlank()
             Text(
-                text = "Reference: ${hadith.reference}",
+                text = if (referenceIsUnverified) {
+                    "Reference: Not yet verified — confirm against the original collection before relying on this citation."
+                } else {
+                    "Reference: ${hadith.reference}"
+                },
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline
+                color = if (referenceIsUnverified) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.outline
             )
 
             Spacer(modifier = Modifier.height(12.dp))

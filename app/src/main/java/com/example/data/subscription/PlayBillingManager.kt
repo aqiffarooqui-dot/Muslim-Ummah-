@@ -34,7 +34,7 @@ data class PlayProductInfo(
  * Production Google Play Billing Architecture for Muslim Ummah.
  * Strictly adheres to Play Billing v7:
  * - Real BillingClient lifecycle
- * - Product loading for the 5 official subscription tiers
+ * - Product loading for the 4 approved subscription tiers
  * - Verified purchase acknowledgment & token handling
  * - Purchase restoration
  * - Secure entitlement synchronization via SubscriptionManager
@@ -60,13 +60,12 @@ object PlayBillingManager : PurchasesUpdatedListener {
     private val _isPurchasing = MutableStateFlow(false)
     val isPurchasing: StateFlow<Boolean> = _isPurchasing.asStateFlow()
 
-    // Configured official subscription product IDs corresponding to the 5 tiers
+    // Only the four approved Muslim Ummah Premium subscription products
     val OFFICIAL_SUBSCRIPTION_PRODUCT_IDS = listOf(
         "muslim_ummah_sub_7d",
         "muslim_ummah_sub_1m",
         "muslim_ummah_sub_3m",
-        "muslim_ummah_sub_9m",
-        "muslim_ummah_sub_1y"
+        "muslim_ummah_sub_9m"
     )
 
     fun initialize(context: Context) {
@@ -115,7 +114,7 @@ object PlayBillingManager : PurchasesUpdatedListener {
     }
 
     /**
-     * Query Play Console subscription products for the 5 tiers
+     * Query Play Console subscription products for the 4 approved tiers
      */
     fun querySubscriptionProducts() {
         val client = billingClient

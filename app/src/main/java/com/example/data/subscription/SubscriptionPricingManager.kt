@@ -32,7 +32,6 @@ data class SubscriptionPlanConfig(
             "plan_1_month" -> "Billed monthly"
             "plan_3_months" -> "Save 23% • ₹${(priceInr / 3)}/mo"
             "plan_9_months" -> "Save 44% • ₹${(priceInr / 9)}/mo"
-            "plan_1_year" -> "Save 48% • ₹${(priceInr / 12)}/mo"
             else -> "$durationDays days"
         }
 }
@@ -41,7 +40,7 @@ object SubscriptionPricingManager {
     private const val TAG = "SubscriptionPricing"
     private val firestore by lazy { FirebaseFirestore.getInstance() }
 
-    // Built-in hardcoded defaults representing the 5 official plans
+    // Approved Muslim Ummah Premium plans; no yearly or lifetime plan is offered.
     private val DEFAULT_CONFIGS = listOf(
         SubscriptionPlanConfig(
             id = "plan_7_days",
@@ -79,15 +78,6 @@ object SubscriptionPricingManager {
             badge = null,
             googlePlayProductId = "muslim_ummah_sub_9m"
         ),
-        SubscriptionPlanConfig(
-            id = "plan_1_year",
-            name = "1 Year",
-            durationDays = 365,
-            priceInr = 799,
-            isEnabled = true,
-            badge = "BEST VALUE",
-            googlePlayProductId = "muslim_ummah_sub_1y"
-        )
     )
 
     private val _plansState = MutableStateFlow(DEFAULT_CONFIGS)

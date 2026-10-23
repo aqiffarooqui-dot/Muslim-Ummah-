@@ -1,6 +1,6 @@
-# Muslim Pro (Android)
+# Muslim Ummah (Android)
 
-Comprehensive Islamic companion application built with **Jetpack Compose**, **Kotlin**, **Room Database**, and **Material Design 3**.
+Islamic companion application built with **Jetpack Compose**, **Kotlin**, **Room Database**, and **Material Design 3**.
 
 ---
 
@@ -8,20 +8,28 @@ Comprehensive Islamic companion application built with **Jetpack Compose**, **Ko
 
 - **Prayer Times & Countdown**: Astronomical calculation (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha) with live second-by-second countdown. Supports Muslim World League, ISNA, Umm Al-Qura, Egyptian, and Karachi calculation methods with Shafi/Hanafi Asr juristic options.
 - **Qibla Compass**: Great-circle trigonometry direction to Kaaba in Makkah with real-time sensor rotation and haptic alignment feedback.
-- **Holy Quran**: 114 Surahs with Arabic Uthmani text, phonetics, English translation, bookmarking, and audio recitation streaming by Sheikh Mishary Rashid Alafasy.
+- **Quran catalog**: 114 Surah and 30 Juz metadata, plus selected local verse excerpts and audio recitation streaming. **The complete 6,236-ayah Arabic/translation corpus is not yet bundled; do not treat the current local text as a complete Mushaf.**
 - **Digital Tasbih**: Tactile circular tap counter with vibration haptics, presets (*SubhanAllah*, *Alhamdulillah*, *Allahu Akbar*, etc.), lap tracking, and persistent Room log history.
 - **Hisn al-Muslim (Duas & Azkar)**: Categorized daily supplications with Arabic, transliteration, English meaning, and references.
 - **99 Names of Allah**: Asma'ul Husna with meanings, transliterations, and spiritual reflection notes.
 - **Islamic Calendar & Fasting**: Hijri date converter, Islamic holidays timeline, and Sunnah fasting guide.
-- **Google Sign-In & Super Admin Console**:
-  - Super Admin role for **`aqiffarooqui@gmail.com`** with permanent VIP unlock.
-  - Admin management dashboard to track user counts (total, free, premium active), view MRR, and grant/modify subscriptions.
-- **Premium Subscription Features**:
+- **Google Sign-In & Admin Console**:
+  - Admin access is intended to be granted by the Firestore user profile `role: ADMIN`; never rely on a hardcoded admin email.
+  - Admin management dashboard for user and subscription management.
+- **Premium Subscription Features** (approved plans: 7 days ₹49, 1 month ₹129, 3 months ₹299, 9 months ₹649):
   - 100% Ad-Free interface
-  - 5 Elite Quran Reciters (Mishary, Abdul Basit, As-Sudais, Ash-Shuraim, Al-Ghamdi)
+  - 5 Quran Reciters (Mishary, Abdul Basit, As-Sudais, Ash-Shuraim, Al-Ghamdi)
   - Historic Adhan Voice Alerts (Makkah, Madinah, Al-Aqsa, Cairo)
   - Ramadan & Qada Prayer Tracker (Suhoor, Iftar, missed prayer tallies)
   - Audio Ruqyah and customized dhikr routines
+
+---
+
+## Content completeness note
+
+- Hadith collection metadata exists, but the full source-verified corpus, exact numbering, grades, and all translations still require import and verification. Records without verified grades/references are labelled unverified.
+- The local Islamic AI engine is retrieval/preset based; a live generative AI connection is not configured by this README. Preset citations are suppressed until source verification is available.
+- Google Play subscription renewal, refunds, and server-side purchase-token verification must be validated before production release.
 
 ---
 

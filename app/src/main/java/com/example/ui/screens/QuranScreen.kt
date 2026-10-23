@@ -172,7 +172,7 @@ fun QuranScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "30 Paras (Juz) • 114 Surahs • Arabic Text & Multi-Language Translations",
+                    text = "114 Surah & 30 Juz index • Partial offline Ayah excerpts • Translation availability varies",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -726,6 +726,21 @@ private fun SurahReaderView(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                 }
+
+            // Data-integrity notice: never present a partial local catalog as a complete Surah.
+            item {
+                val missingAyahs = QuranRepository.getMissingAyahCount(surah.number)
+                if (missingAyahs > 0) {
+                    Text(
+                        text = "Content notice: ${surah.totalAyahs - missingAyahs} of ${surah.totalAyahs} ayah numbers are present in the verified local dataset; ${missingAyahs} are missing. Missing ayahs are not fabricated; this Surah is incomplete in offline content.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp)
+                    )
+                }
+            }
 
             // Ayat List
             items(verses) { ayah ->
