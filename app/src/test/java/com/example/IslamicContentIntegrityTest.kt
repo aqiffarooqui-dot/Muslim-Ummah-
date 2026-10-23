@@ -1,5 +1,7 @@
 package com.example
 
+import com.example.data.ai.AiMode
+import com.example.data.ai.MuslimUmmahAiEngine
 import com.example.data.model.Ayah
 import com.example.data.model.HadithItem
 import com.example.data.model.HadithRepository
@@ -48,6 +50,29 @@ class IslamicContentIntegrityTest {
                 QuranRepository.getMissingAyahCount(surah.number) in 0..surah.totalAyahs
             )
         }
+    }
+
+    @Test
+    fun personalSearchDoesNotInventQuranOrHadithCitations() {
+        val answer = MuslimUmmahAiEngine.answerQuery(
+            "find something about a topic missing from local corpus",
+            AiMode.PERSONAL_SEARCH
+        )
+        assertTrue(answer.quranCitations.isEmpty())
+        assertTrue(answer.hadithCitations.isEmpty())
+        assertTrue(answer.text.contains("incomplete"))
+        assertTrue(answer.text.contains("No citation"))
+    }
+
+    @Test
+    fun generalIslamicFallbackDoesNotAttachUnrelatedCitations() {
+        val answer = MuslimUmmahAiEngine.answerQuery(
+            "dua for an unusual situation not covered locally",
+            AiMode.GENERAL
+        )
+        assertTrue(answer.quranCitations.isEmpty())
+        assertTrue(answer.hadithCitations.isEmpty())
+        assertTrue(answer.text.contains("could not retrieve enough verified source material"))
     }
 
     @Test
