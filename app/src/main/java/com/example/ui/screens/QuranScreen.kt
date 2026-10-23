@@ -729,9 +729,10 @@ private fun SurahReaderView(
 
             // Data-integrity notice: never present a partial local catalog as a complete Surah.
             item {
-                if (verses.size < surah.totalAyahs) {
+                val missingAyahs = QuranRepository.getMissingAyahCount(surah.number)
+                if (missingAyahs > 0) {
                     Text(
-                        text = "Content notice: ${verses.size} of ${surah.totalAyahs} ayahs are currently available in the verified local dataset. Missing ayahs are not fabricated; this Surah is incomplete in offline content.",
+                        text = "Content notice: ${surah.totalAyahs - missingAyahs} of ${surah.totalAyahs} ayah numbers are present in the verified local dataset; ${missingAyahs} are missing. Missing ayahs are not fabricated; this Surah is incomplete in offline content.",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier
