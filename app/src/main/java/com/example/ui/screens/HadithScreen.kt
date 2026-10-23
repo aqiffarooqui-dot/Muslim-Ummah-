@@ -532,6 +532,32 @@ fun HadithScreen(
             }
             // Collections Cards Mode
             else {
+                // Be transparent that the current offline content is a curated sample, not complete collections.
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = "Offline collection is incomplete",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Currently available locally: ${HadithRepository.ALL_HADITHS.size} curated Hadith entries across ${HadithRepository.MAIN_BOOKS.size} collections. The totals shown on collection cards are collection-wide estimates, not the number stored in this app. Check each source and grading before relying on a citation.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
                 items(HadithRepository.MAIN_BOOKS) { book ->
                     HadithCollectionCard(
                         book = book,
